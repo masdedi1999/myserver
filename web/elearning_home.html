@@ -1,0 +1,3759 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<title>Preview Chat</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:sans-serif;background:#0d1117;color:#e6edf3;height:100dvh;overflow:hidden;
+-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;
+-webkit-touch-callout:none;}
+input,textarea{-webkit-user-select:text;-moz-user-select:text;-ms-user-select:text;user-select:text;}
+
+:root{--header-h:52px;--icon-bar-w:48px;--sub-bar-w:160px;--ticker-h:26px;}
+
+.header{position:fixed;top:0;left:var(--icon-bar-w);right:0;background:#161b22;
+border-bottom:1px solid #21262d;padding:0 16px;display:flex;align-items:center;
+z-index:10;height:var(--header-h);transition:left .25s ease;}
+.header.sub-open{left:calc(var(--icon-bar-w) + var(--sub-bar-w));}
+.header h1{font-size:16px;letter-spacing:1px;color:#e6edf3;flex:1;text-align:center;}
+
+/* ── News ticker (pita biru, di bawah header) ── */
+.news-ticker{position:fixed;top:var(--header-h);left:var(--icon-bar-w);right:0;
+height:var(--ticker-h);overflow:hidden;z-index:9;transition:left .25s ease;
+background:#1f6feb;
+border-bottom:1px solid #000;border-top:1px solid #000;
+box-shadow:0 1px 4px rgba(0,0,0,.4);}
+.news-ticker.sub-open{left:calc(var(--icon-bar-w) + var(--sub-bar-w));}
+.news-ticker-track{position:absolute;top:0;left:0;height:100%;display:flex;
+align-items:center;white-space:nowrap;will-change:transform;
+animation:newsTickerMove 36s linear infinite;}
+.news-ticker-track span{display:inline-flex;align-items:center;padding:0 28px;
+font-size:12px;font-weight:800;color:#fff;letter-spacing:.5px;
+text-transform:uppercase;}
+@keyframes newsTickerMove{
+  0%{transform:translateX(100%);}
+  100%{transform:translateX(-100%);}
+}
+
+.icon-bar{position:fixed;top:0;left:0;width:var(--icon-bar-w);height:100%;
+background:#161b22;border-right:1px solid #21262d;z-index:40;
+display:flex;flex-direction:column;align-items:center;padding:0;}
+.logo-slot{width:100%;height:var(--header-h);display:flex;align-items:center;
+justify-content:center;font-size:20px;flex-shrink:0;
+border-bottom:1px solid #21262d;padding-top:6px;}
+.icon-bar .top{display:flex;flex-direction:column;align-items:center;
+gap:14px;flex:1;padding:0;justify-content:center;margin-top:-18px;}
+.i-btn{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;
+justify-content:center;font-size:24px;cursor:pointer;transition:background .15s;
+border:none;}
+.i-btn:hover{background:#1c2128;}
+.i-btn.active{background:#1c2128;}
+.icon-bar .bot{display:flex;flex-direction:column;align-items:center;
+gap:14px;padding:8px 0;border-top:1px solid #21262d;}
+.i-btn.sm{width:30px;height:30px;font-size:24px;border:none;}
+
+.sub-bar{position:fixed;top:0;left:var(--icon-bar-w);width:var(--sub-bar-w);height:100%;
+background:#0d1117;border-right:1px solid #21262d;z-index:35;
+display:flex;flex-direction:column;
+transform:translateX(-100%);transition:transform .25s ease;}
+.sub-bar.open{transform:translateX(0);}
+.sub-title{height:var(--header-h);display:flex;align-items:center;justify-content:center;padding:0 10px;
+font-family:'MS Gothic','Gothic',monospace;font-size:12px;font-weight:700;letter-spacing:1px;
+color:#8b949e;border-bottom:1px solid #21262d;flex-shrink:0;
+white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.sub-content{flex:1;overflow-y:auto;padding:8px 0;display:flex;flex-direction:column;}
+.sub-content::-webkit-scrollbar{width:3px;}
+.sub-content::-webkit-scrollbar-thumb{background:#21262d;}
+
+.sub-item{display:flex;align-items:center;justify-content:center;gap:10px;padding:10px 14px;
+cursor:pointer;font-size:15.5px;color:#e6edf3;transition:background .15s;}
+.sub-item:hover{background:#161b22;}
+.sub-item.expanded{background:#161b22;color:#58a6ff;}
+.sub-item .si-ico{font-size:15.5px;flex-shrink:0;}
+.sub-item .si-arrow{margin-left:auto;font-size:15px;color:#484f58;
+transition:transform .2s;flex-shrink:0;}
+.sub-item.expanded .si-arrow{transform:rotate(90deg);color:#58a6ff;}
+.room-expand{max-height:0;overflow:hidden;
+transition:max-height .3s ease;
+border-left:2px solid #21262d;background:#0a0e13;}
+.room-expand.open{max-height:300px;}
+
+/* ── Cafetaria: item room dengan nama (editable via long-press) + status ── */
+.sub-item[data-cafetaria-idx]{justify-content:flex-start;flex-wrap:wrap;
+align-items:center;row-gap:2px;}
+.sub-item[data-cafetaria-idx] .si-room-name{flex:1;min-width:0;overflow:hidden;
+text-overflow:ellipsis;white-space:nowrap;}
+.sub-item[data-cafetaria-idx] .si-room-name.editing{white-space:normal;
+outline:1px solid #58a6ff;border-radius:6px;padding:2px 6px;background:#0d1117;}
+.sub-item[data-cafetaria-idx] .si-room-status{font-size:11px;color:#3fb950;
+font-family:'MS Gothic','Gothic',monospace;letter-spacing:.5px;
+flex-basis:100%;width:100%;padding-left:28px;}
+.sub-item[data-cafetaria-idx] .si-room-status.empty{color:#484f58;}
+
+/* ── Sub-item dengan 2 zona klik (kiri=expand, kanan=preview/full) ── */
+.si-row{display:flex;align-items:stretch;justify-content:center;transition:background .15s;}
+.si-row:hover{background:#161b22;}
+.si-row.expanded{background:#161b22;}
+.si-main{flex:1;display:flex;align-items:center;justify-content:center;gap:10px;padding:10px 8px 10px 14px;
+cursor:pointer;font-size:15.5px;color:#e6edf3;min-width:0;}
+.si-row.expanded .si-main{color:#58a6ff;}
+
+
+/* ── Sub-sub-bab (isi room-expand untuk Latihan/Materi) ── */
+.ssb-item{display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 14px 8px 14px;
+font-size:14.5px;font-weight:700;color:#8b949e;cursor:pointer;
+white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.ssb-item:hover{background:#11161c;color:#e6edf3;}
+.ssb-item .ssb-dot{width:5px;height:5px;border-radius:50%;background:#30363d;flex-shrink:0;}
+
+.u-item{display:flex;align-items:center;justify-content:center;gap:10px;padding:8px 14px;}
+.u-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.u-dot.online{background:#3fb950;animation:pulse 2s infinite;}
+.u-dot.offline{background:#f85149;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.u-name{font-size:12px;color:#e6edf3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+.chat-wrap{position:fixed;left:var(--icon-bar-w);right:0;bottom:0;top:calc(var(--header-h) + var(--ticker-h));
+display:flex;flex-direction:column;overflow:hidden;padding:0 12px 8px;
+background:#0d1117;z-index:5;transition:left .25s ease,bottom .25s ease;}
+.chat-wrap.sub-open{left:calc(var(--icon-bar-w) + var(--sub-bar-w));}
+
+.chat-box{flex:1;overflow-y:auto;display:flex;flex-direction:column;padding-bottom:4px;}
+.chat-box::-webkit-scrollbar{width:4px;}
+.chat-box::-webkit-scrollbar-thumb{background:#21262d;border-radius:4px;}
+
+/* ── Tombol scroll ke chat terbaru (muncul saat chat tenggelam) ── */
+.scroll-bottom-btn{position:absolute;right:18px;bottom:128px;
+width:38px;height:38px;border-radius:50%;
+background:#1f6feb;border:none;color:#fff;font-size:16px;
+display:flex;align-items:center;justify-content:center;cursor:pointer;
+box-shadow:0 3px 12px rgba(0,0,0,.5);z-index:6;
+opacity:0;transform:translateY(8px) scale(.85);pointer-events:none;
+transition:opacity .2s,transform .2s;}
+.scroll-bottom-btn.show{opacity:1;transform:translateY(0) scale(1);pointer-events:auto;}
+.scroll-bottom-btn:active{background:#388bfd;}
+.scroll-bottom-btn .sb-badge{position:absolute;top:-4px;right:-4px;
+background:#f85149;color:#fff;font-size:9px;font-weight:700;
+min-width:16px;height:16px;border-radius:8px;padding:0 4px;
+display:flex;align-items:center;justify-content:center;
+border:1.5px solid #0d1117;}
+
+.msg-row{border-top:1px solid #1c2128;padding:8px 0;}
+.msg-row:first-child{border-top:none;}
+.msg-name{font-size:14px;font-weight:700;letter-spacing:.5px;margin-bottom:3px;
+display:flex;align-items:center;gap:5px;}
+.msg-time{font-size:10px;color:#484f58;display:block;margin-bottom:4px;}
+.msg-text{font-size:14px;color:#e6edf3;word-break:break-word;}
+.msg-system{text-align:center;font-size:11px;color:#484f58;padding:8px 0;}
+.msg-file{display:inline-flex;align-items:center;gap:6px;margin-top:6px;
+color:#79c0ff;font-size:13px;text-decoration:none;border:1px solid #1f6feb;
+border-radius:8px;padding:6px 10px;word-break:break-all;}
+.ind{width:4px;height:4px;border-radius:50%;flex-shrink:0;display:inline-block;}
+.ind.online{background:#3fb950;animation:pulse 2s infinite;}
+.ind.offline{background:#800000;opacity:.55;}
+.day-sep{display:flex;align-items:center;gap:8px;padding:10px 0;margin:2px 0;}
+.day-sep::before,.day-sep::after{content:'';flex:1;height:1px;background:#21262d;}
+.day-sep span{font-size:10px;color:#484f58;white-space:nowrap;
+font-family:'MS Gothic','Gothic',monospace;letter-spacing:1px;}
+
+.status-bar{display:flex;align-items:center;gap:12px;padding:3px 4px;flex-shrink:0;}
+.status-pill{display:flex;align-items:center;gap:5px;font-size:11px;
+font-family:'MS Gothic','Gothic',monospace;letter-spacing:.5px;}
+.status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.status-dot.on{background:#3fb950;animation:pulse 2s infinite;}
+.status-dot.off{background:#800000;opacity:.7;}
+.status-pill .cnt{color:#8b949e;}
+.status-pill .lbl{color:#484f58;}
+.status-sep{width:1px;height:12px;background:#21262d;}
+
+.chat-input-bar{padding:6px 0;flex-shrink:0;background:#0d1117;width:100%;}
+.input-wrapper{display:flex;align-items:center;background:#161b22;border:1px solid #30363d;
+border-radius:20px;padding:6px 8px;gap:6px;width:100%;}
+.input-wrapper:focus-within{border-color:#1f6feb;}
+.input-wrapper input[type=text]{flex:1;background:transparent;border:none;color:#e6edf3;
+padding:7px 4px;font-size:14px;outline:none;min-width:0;width:0;}
+.input-wrapper button{background:#1f6feb;border:none;color:#fff;
+width:30px;height:30px;border-radius:50%;font-size:14px;cursor:pointer;
+display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;}
+.input-wrapper button:active{background:#388bfd;}
+.btn-plus{background:#21262d !important;font-size:18px !important;}
+
+.attach-overlay{display:none;position:fixed;inset:0;z-index:50;}
+.attach-overlay.open{display:block;}
+.attach-menu{position:fixed;bottom:0;left:var(--icon-bar-w);right:0;z-index:51;
+background:#161b22;border-top:1px solid #21262d;padding:16px 24px 24px;
+transform:translateY(100%);transition:transform .25s ease;}
+.attach-menu.open{transform:translateY(0);}
+.attach-menu-row{display:flex;justify-content:center;gap:32px;}
+.attach-btn{display:flex;flex-direction:column;align-items:center;gap:8px;
+background:none;border:none;cursor:pointer;color:#e6edf3;}
+.attach-btn .ico{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;
+justify-content:center;font-size:20px;}
+.attach-btn .lbl{font-size:11px;color:#8b949e;}
+.attach-btn.kamera .ico{background:#1f3a5c;border:1px solid #1f6feb;}
+.attach-btn.file   .ico{background:#1a2f1a;border:1px solid #3fb950;}
+.attach-btn.galeri .ico{background:#2d1f3a;border:1px solid #a371f7;}
+
+/* ── Media Preview bar (di atas input) ── */
+.media-preview-bar{display:none;padding:6px 8px 0;gap:8px;align-items:flex-end;}
+.media-preview-bar.show{display:flex;}
+.mp-thumb{position:relative;flex-shrink:0;}
+.mp-thumb img,.mp-thumb video{width:70px;height:70px;object-fit:cover;
+border-radius:10px;border:1px solid #30363d;display:block;}
+.mp-thumb video{background:#000;}
+.mp-remove{position:absolute;top:-6px;right:-6px;width:18px;height:18px;
+background:#f85149;border-radius:50%;border:none;color:#fff;
+font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+line-height:1;padding:0;}
+
+/* ── Pesan media ── */
+.msg-img{max-width:200px;border-radius:10px;margin-top:5px;display:block;cursor:pointer;}
+.msg-video{max-width:220px;border-radius:10px;margin-top:5px;display:block;
+background:#000;outline:none;}
+
+/* ── Reaction popup ── */
+.react-popup{position:fixed;z-index:200;background:#1c2128;border:1px solid #30363d;
+border-radius:24px;padding:7px 12px;display:flex;gap:6px;
+box-shadow:0 4px 20px rgba(0,0,0,.6);
+transform:scale(0);opacity:0;transition:transform .15s ease,opacity .15s ease;
+pointer-events:none;}
+.react-popup.show{transform:scale(1);opacity:1;pointer-events:auto;}
+.react-popup span{font-size:28px;cursor:pointer;transition:transform .1s;}
+.react-popup span:active{transform:scale(1.25);}
+
+/* ── Reaction pada pesan ── */
+.msg-reactions{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
+.msg-react-badge{background:#21262d;border:1px solid #30363d;border-radius:12px;
+padding:2px 7px;font-size:13px;cursor:pointer;transition:background .15s;}
+.msg-react-badge:hover{background:#2d333b;}
+
+/* ── Org Pages (Dewan, My Lord, Rule) ── */
+.org-page{position:fixed;left:var(--icon-bar-w);right:0;
+top:var(--header-h);bottom:0;background:#0d1117;z-index:15;
+display:none;flex-direction:column;overflow-y:auto;
+transition:left .25s ease;}
+.org-page.open{display:flex;}
+.org-page.sub-open{left:calc(var(--icon-bar-w) + var(--sub-bar-w));}
+.org-page::-webkit-scrollbar{width:3px;}
+.org-page::-webkit-scrollbar-thumb{background:#21262d;}
+
+/* Struktur Dewan Mimbar */
+.dewan-wrap{display:flex;flex-direction:column;align-items:center;
+padding:24px 16px 32px;gap:0;width:100%;}
+.dewan-node{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.dewan-box{background:#161b22;border:1px solid #30363d;border-radius:12px;
+width:58px;height:58px;font-size:30px;
+display:flex;align-items:center;justify-content:center;flex-shrink:0;
+cursor:pointer;transition:transform .15s,box-shadow .15s;}
+.dewan-box:hover{transform:scale(1.1);box-shadow:0 0 8px rgba(255,255,255,.1);}
+.dewan-box.kaisar{border-color:#ffa657;background:#1a1200;}
+.dewan-box.daimyo{border-color:#58a6ff;background:#0d1a2e;}
+.dewan-box.samurai{border-color:#56d364;background:#0d1a0d;
+width:35px;height:35px;font-size:16px;border-radius:8px;}
+.dewan-line{width:1px;height:24px;background:#30363d;}
+.dewan-hline{height:1px;background:#30363d;align-self:stretch;}
+.samurai-row{display:flex;gap:12px;justify-content:center;margin-top:0;}
+.samurai-col{display:flex;flex-direction:column;align-items:center;gap:0;}
+.dewan-branch{display:flex;align-items:flex-start;position:relative;width:100%;}
+.branch-top{width:1px;height:24px;background:#30363d;margin:0 auto;}
+
+/* My Lord */
+.mylord-wrap{padding:24px 20px;display:flex;flex-direction:column;gap:16px;}
+.lord-card{background:#161b22;border:1px solid #30363d;border-radius:14px;
+padding:16px;display:flex;align-items:center;gap:14px;}
+.lord-ava{width:52px;height:52px;border-radius:50%;background:#21262d;
+border:2px solid #ffa657;display:flex;align-items:center;
+justify-content:center;font-size:26px;flex-shrink:0;}
+.lord-info{flex:1;}
+.lord-name{font-size:14px;font-weight:700;color:#e6edf3;letter-spacing:.5px;}
+.lord-role{font-size:11px;color:#ffa657;margin-top:3px;letter-spacing:1px;}
+.lord-desc{font-size:12px;color:#8b949e;margin-top:5px;line-height:1.6;}
+
+/* Rule */
+.rule-wrap{padding:20px 18px;display:flex;flex-direction:column;gap:12px;}
+.rule-section{background:#161b22;border:1px solid #21262d;border-radius:12px;overflow:hidden;}
+.rule-head{padding:10px 14px;font-size:12px;font-weight:700;letter-spacing:1px;
+color:#58a6ff;border-bottom:1px solid #21262d;
+font-family:'MS Gothic','Gothic',monospace;}
+.rule-list{padding:10px 14px;display:flex;flex-direction:column;gap:8px;}
+.rule-item{display:flex;gap:10px;align-items:flex-start;font-size:12px;color:#e6edf3;line-height:1.6;}
+.rule-num{color:#484f58;flex-shrink:0;font-family:monospace;margin-top:1px;}
+
+/* ── Halaman Soal Pilihan Ganda ── */
+.soal-wrap{display:flex;flex-direction:column;width:100%;height:100%;overflow:hidden;}
+.soal-body{flex:1;overflow-y:auto;padding:18px 18px 14px;display:flex;flex-direction:column;gap:14px;}
+.soal-progress{font-size:11px;color:#8b949e;letter-spacing:1.5px;text-align:center;
+font-family:'MS Gothic','Gothic',monospace;}
+.soal-timer{font-size:26px;font-weight:800;color:#58a6ff;text-align:center;
+font-family:'MS Gothic','Gothic',monospace;letter-spacing:1px;}
+.soal-timer.urgent{color:#f85149;}
+.soal-question{background:#161b22;border:1px solid #21262d;border-radius:12px;
+padding:16px;font-size:14px;color:#e6edf3;line-height:1.7;}
+.soal-opts-vert{display:flex;flex-direction:column;gap:10px;}
+.soal-opt{width:100%;background:#161b22;border:1px solid #30363d;border-radius:12px;
+color:#e6edf3;font-size:14px;font-weight:600;padding:14px 16px;cursor:pointer;
+text-align:left;transition:background .15s,border-color .15s;}
+.soal-opt:active{background:#1c2128;}
+.soal-opt.correct{background:#0d1a0d;border-color:#3fb950;color:#3fb950;}
+.soal-opt.wrong{background:#1a0d0d;border-color:#f85149;color:#f85149;}
+
+/* ── Avatar peserta (di atas tombol, slide horizontal) ── */
+.soal-peserta-strip{flex-shrink:0;display:flex;gap:14px;padding:10px 16px;
+overflow-x:auto;border-top:1px solid #21262d;background:#0d1117;}
+.soal-peserta-strip::-webkit-scrollbar{display:none;}
+.soal-peserta{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;}
+.soal-peserta-ava{width:42px;height:42px;border-radius:50%;background:#21262d;
+display:flex;align-items:center;justify-content:center;font-size:20px;
+border:2px solid #30363d;transition:opacity .2s,filter .2s;}
+.soal-peserta-name{font-size:9px;color:#8b949e;max-width:48px;
+overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.soal-peserta.terjawab .soal-peserta-ava{opacity:.4;filter:grayscale(.6) brightness(.6);}
+
+/* ── Room (Voice) Bar — muncul sebagai footer bar, bukan full-screen ── */
+/* Susunan header: (1) info room (nama + Room Master + LIVE) rata kiri,
+   (2) strip avatar member rata kanan, sejajar dalam satu baris.
+   (3) tombol mic + keluar tetap rata tengah di baris paling bawah. */
+:root{--room-bar-h:158px;}
+.room-bar{position:fixed;left:var(--icon-bar-w);right:0;bottom:0;z-index:36;
+background:#161b22;border-top:1px solid #30363d;
+display:none;flex-direction:column;padding:10px 12px 12px;height:var(--room-bar-h);
+box-shadow:0 -4px 16px rgba(0,0,0,.35);transition:left .25s ease;}
+.room-bar.open{display:flex;}
+.room-bar-toprow{display:flex;flex:1;align-items:center;gap:10px;min-height:0;}
+.room-bar-head{display:flex;flex-direction:column;align-items:flex-start;
+gap:2px;flex-shrink:0;text-align:left;max-width:42%;}
+.room-bar-title{font-size:13px;font-weight:700;color:#e6edf3;letter-spacing:.3px;
+overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;}
+.room-bar-master{font-size:10px;color:#d29922;letter-spacing:.3px;
+font-family:'MS Gothic','Gothic',monospace;overflow:hidden;text-overflow:ellipsis;
+white-space:nowrap;max-width:100%;}
+.room-bar-master:empty{display:none;}
+.room-bar-status{display:flex;align-items:center;justify-content:flex-start;gap:6px;}
+.room-bar-status .rh-sub{font-size:9px;color:#3fb950;letter-spacing:.5px;
+font-family:'MS Gothic','Gothic',monospace;display:flex;align-items:center;gap:3px;}
+.room-bar-status .rh-sub::before{content:'';width:5px;height:5px;border-radius:50%;
+background:#3fb950;animation:pulse 2s infinite;flex-shrink:0;}
+.room-bar-status .rh-count{font-size:9px;color:#8b949e;letter-spacing:.3px;
+font-family:'MS Gothic','Gothic',monospace;}
+.room-bar-strip{flex:1;display:flex;gap:14px;overflow-x:auto;overflow-y:hidden;
+padding:6px 2px;scrollbar-width:none;justify-content:flex-end;align-items:center;}
+.room-bar-strip::-webkit-scrollbar{display:none;}
+.room-bar-controls{display:flex;justify-content:center;align-items:center;
+gap:18px;flex-shrink:0;}
+
+/* Pita running text nama lagu, muncul menempel tepat di atas Room Bar
+   saat musik sedang diputar di room. */
+.music-ticker{display:none;position:fixed;left:var(--icon-bar-w);right:0;
+bottom:var(--room-bar-h);z-index:35;height:26px;background:#1a2f3d;
+border-top:1px solid #30363d;align-items:center;gap:8px;padding:0 12px;
+overflow:hidden;transition:left .25s ease;}
+.music-ticker.show{display:flex;}
+.music-ticker-icon{flex-shrink:0;font-size:12px;}
+.music-ticker-track{flex:1;overflow:hidden;white-space:nowrap;position:relative;}
+.music-ticker-text{display:inline-block;font-size:11px;color:#58a6ff;
+letter-spacing:.3px;font-family:'MS Gothic','Gothic',monospace;
+padding-left:100%;animation:musicTickerScroll 12s linear infinite;}
+@keyframes musicTickerScroll{
+  0%{transform:translateX(0);}
+  100%{transform:translateX(-100%);}
+}
+
+/* Room member (dipakai di footer strip DAN di Room Tunggu simulasi) */
+.room-member{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;}
+.room-bar-strip .room-member{gap:2px;}
+.room-ava-wrap{position:relative;width:60px;height:60px;flex-shrink:0;}
+.room-bar-strip .room-ava-wrap{width:38px;height:38px;}
+.room-ava{width:60px;height:60px;border-radius:50%;background:#0d1117;
+border:2px solid #30363d;display:flex;align-items:center;justify-content:center;
+font-size:26px;transition:box-shadow .2s,border-color .2s;}
+.room-bar-strip .room-ava{width:38px;height:38px;font-size:17px;}
+.room-member.speaking .room-ava{border-color:#3fb950;
+box-shadow:0 0 0 3px rgba(63,185,80,.35);animation:speakPulse 1.1s infinite;}
+@keyframes speakPulse{0%,100%{box-shadow:0 0 0 3px rgba(63,185,80,.35);}
+50%{box-shadow:0 0 0 6px rgba(63,185,80,.15);}}
+.room-mic-badge{position:absolute;bottom:-3px;right:-3px;min-width:22px;height:22px;
+border-radius:11px;background:#21262d;border:2px solid #0d1117;padding:0 3px;
+display:flex;align-items:center;justify-content:center;font-size:10px;white-space:nowrap;}
+.room-bar-strip .room-mic-badge{min-width:15px;height:15px;font-size:7px;bottom:-2px;right:-2px;
+border-width:1.5px;border-radius:8px;}
+.room-mic-badge.live{background:#1a2f1a;color:#3fb950;}
+.room-mic-badge.muted{background:#2d1216;color:#f85149;}
+.room-speaker-badge{position:absolute;bottom:-3px;left:-3px;width:22px;height:22px;
+border-radius:50%;background:#21262d;border:2px solid #0d1117;
+display:flex;align-items:center;justify-content:center;font-size:11px;}
+.room-bar-strip .room-speaker-badge{width:15px;height:15px;font-size:8px;bottom:-2px;left:-2px;
+border-width:1.5px;}
+.room-speaker-badge.live{background:#1a2f1a;color:#3fb950;}
+.room-speaker-badge.muted{background:#2d1216;color:#f85149;}
+.room-mname{font-size:11px;color:#e6edf3;text-align:center;max-width:78px;
+overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.room-bar-strip .room-mname{font-size:8px;max-width:44px;}
+.room-mrole{font-size:9px;color:#484f58;letter-spacing:.5px;}
+.room-bar-strip .room-mrole{display:none;}
+.room-bar-empty{font-size:10px;color:#484f58;letter-spacing:.3px;
+font-family:'MS Gothic','Gothic',monospace;white-space:nowrap;}
+
+.room-ctrl-btn{width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;
+display:flex;align-items:center;justify-content:center;font-size:22px;
+transition:background .15s,transform .1s;flex-shrink:0;}
+.room-ctrl-btn.sm{width:38px;height:38px;font-size:16px;}
+.room-ctrl-btn:active{transform:scale(.92);}
+.room-ctrl-btn.mic-off{background:#21262d;color:#8b949e;}
+.room-ctrl-btn.mic-on{background:#1a2f1a;color:#3fb950;border:1px solid #3fb950;}
+.room-ctrl-btn.speaker-off{background:#2d1216;color:#f85149;border:1px solid #f85149;}
+.room-ctrl-btn.speaker-on{background:#21262d;color:#8b949e;}
+.room-ctrl-btn.leave{background:#2d1216;color:#f85149;}
+.room-ctrl-btn.music{background:#21262d;color:#8b949e;}
+.room-ctrl-btn.music.playing{background:#1a2540;color:#58a6ff;border:1px solid #58a6ff;}
+
+/* ── Popup List Musik Room ── */
+.music-popup-overlay{display:none;position:fixed;inset:0;z-index:109;
+background:rgba(0,0,0,.5);}
+.music-popup-overlay.open{display:block;}
+.music-popup{display:none;position:fixed;left:50%;top:50%;right:auto;bottom:auto;
+transform:translate(-50%,-50%);width:min(92vw,380px);z-index:110;background:#161b22;
+border:1px solid #30363d;border-radius:14px;
+max-height:70vh;flex-direction:column;box-shadow:0 10px 40px rgba(0,0,0,.5);}
+.music-popup.open{display:flex;}
+.music-popup-head{display:flex;align-items:center;justify-content:space-between;
+padding:14px 16px;border-bottom:1px solid #21262d;font-size:14px;font-weight:700;
+color:#e6edf3;letter-spacing:.5px;flex-shrink:0;}
+.music-popup-close{width:28px;height:28px;border-radius:8px;background:#0d1117;
+border:1px solid #30363d;color:#8b949e;font-size:13px;cursor:pointer;
+display:flex;align-items:center;justify-content:center;}
+.music-popup-list{flex:1;overflow-y:auto;padding:6px 0;}
+.music-empty{text-align:center;font-size:12px;color:#484f58;padding:24px 16px;
+font-family:'MS Gothic','Gothic',monospace;}
+.music-item{display:flex;align-items:center;gap:10px;padding:10px 16px;
+border-bottom:1px solid #1c2128;}
+.music-item-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;
+white-space:nowrap;font-size:13px;color:#e6edf3;}
+.music-item.active .music-item-title{color:#58a6ff;font-weight:700;}
+.music-item-sub{font-size:10px;color:#484f58;font-family:'MS Gothic','Gothic',monospace;}
+.music-toggle-btn{width:34px;height:34px;border-radius:50%;border:none;cursor:pointer;
+flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;
+background:#21262d;color:#8b949e;transition:background .15s,color .15s;}
+.music-toggle-btn.on{background:#1a2f1a;color:#3fb950;}
+.music-toggle-btn:disabled{opacity:.4;cursor:not-allowed;}
+.music-del-btn{width:28px;height:28px;border-radius:8px;border:none;cursor:pointer;
+flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;
+background:#2d1216;color:#f85149;}
+.music-popup-upload{padding:12px 16px;border-top:1px solid #21262d;flex-shrink:0;}
+.music-upload-btn{display:flex;align-items:center;justify-content:center;
+padding:10px;border-radius:10px;border:1px dashed #30363d;color:#58a6ff;
+font-size:12px;cursor:pointer;letter-spacing:.3px;}
+.music-upload-btn:active{background:#0d1117;}
+.music-master-hint{text-align:center;font-size:10px;color:#484f58;padding:10px 16px;
+font-family:'MS Gothic','Gothic',monospace;letter-spacing:.3px;}
+
+/* Saat room bar footer aktif, geser konten chat ke atas
+   supaya tidak ketiban bar (bukan overlay/menimpa). */
+.chat-wrap.room-bar-active{bottom:var(--room-bar-h);}
+
+/* ── Halaman Item Generik (Latihan & Liga full page) ── */
+.item-page-wrap{display:flex;flex-direction:column;align-items:center;
+padding:32px 20px 28px;gap:10px;width:100%;}
+.item-page-ico{width:72px;height:72px;border-radius:16px;background:#161b22;
+border:1px solid #30363d;display:flex;align-items:center;justify-content:center;
+font-size:36px;flex-shrink:0;}
+.item-page-name{font-size:16px;font-weight:700;color:#e6edf3;letter-spacing:.5px;margin-top:6px;}
+.item-page-sub{font-size:10px;color:#484f58;letter-spacing:1px;
+font-family:'MS Gothic','Gothic',monospace;}
+.item-page-divider{width:60%;height:1px;background:#21262d;margin:14px 0;}
+.item-page-body{font-size:12px;color:#8b949e;text-align:center;line-height:1.8;max-width:260px;}
+.ip-expand-btn{position:absolute;top:14px;right:14px;width:30px;height:30px;
+border-radius:8px;background:#161b22;border:1px solid #30363d;color:#8b949e;
+font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+z-index:2;}
+.ip-expand-btn:hover{color:#58a6ff;border-color:#58a6ff;}
+
+
+.dewan-profil-overlay{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);}
+.dewan-profil-overlay.open{display:block;}
+.dewan-profil-card{position:fixed;bottom:0;left:var(--icon-bar-w);right:0;z-index:101;
+background:#161b22;border-top:1px solid #30363d;border-radius:16px 16px 0 0;
+padding:0 0 28px;display:flex;flex-direction:column;align-items:center;
+transform:translateY(100%);transition:transform .25s ease;overflow:hidden;}
+.dewan-profil-card.open{transform:translateY(0);}
+
+/* banner + avatar */
+.dp-banner{width:100%;height:56px;flex-shrink:0;}
+.dp-ava-wrap{position:relative;margin-top:-32px;margin-bottom:6px;}
+.dp-avatar{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;
+justify-content:center;font-size:34px;flex-shrink:0;border:3px solid #161b22;
+box-shadow:0 0 0 2px #30363d;}
+
+/* teks info */
+.dp-name{font-size:15px;font-weight:700;color:#e6edf3;letter-spacing:.5px;margin-top:2px;}
+.dp-username{font-size:11px;color:#484f58;letter-spacing:.5px;margin-top:1px;}
+.dp-role{font-size:10px;letter-spacing:2px;font-family:'MS Gothic','Gothic',monospace;margin-top:4px;}
+.dp-divider{width:80%;height:1px;background:#21262d;margin:10px 0 6px;}
+
+/* lencana row */
+.dp-section-label{font-size:9px;color:#484f58;letter-spacing:2px;
+font-family:'MS Gothic','Gothic',monospace;align-self:flex-start;padding:0 20px;margin-bottom:5px;}
+.dp-lencana-row{display:flex;gap:8px;padding:0 20px;flex-wrap:wrap;width:100%;justify-content:center;}
+.dp-badge{width:32px;height:32px;border-radius:9px;background:#0d1117;
+border:1px solid #30363d;display:flex;align-items:center;justify-content:center;
+font-size:17px;flex-shrink:0;}
+
+/* tugas */
+.dp-tugas-wrap{width:100%;padding:0 20px;margin-top:10px;}
+.dp-tugas-item{display:flex;align-items:flex-start;gap:8px;padding:7px 0;
+border-top:1px solid #1c2128;font-size:12px;color:#8b949e;line-height:1.5;}
+.dp-tugas-item:first-child{border-top:none;}
+.dp-tugas-num{color:#30363d;font-family:monospace;flex-shrink:0;margin-top:1px;}
+
+.dp-close{margin-top:14px;background:none;border:1px solid #30363d;border-radius:10px;
+color:#8b949e;font-size:12px;padding:8px 32px;cursor:pointer;font-family:inherit;}
+
+
+.lencana-page{position:fixed;left:var(--icon-bar-w);right:0;
+top:0;bottom:0;background:#0d1117;z-index:36;
+display:flex;flex-direction:column;overflow:hidden;
+transition:left .25s ease,transform .28s cubic-bezier(.4,0,.2,1);
+transform:translateX(100%);}
+.lencana-page.open{transform:translateX(0);}
+.lencana-page.sub-open{left:calc(var(--icon-bar-w) + var(--sub-bar-w));}
+.lp-header{display:flex;align-items:center;justify-content:center;
+height:var(--header-h);padding:0 16px;flex-shrink:0;
+background:#161b22;border-bottom:1px solid #21262d;position:relative;
+cursor:pointer;}
+.lp-header:active{background:#1c2128;}
+.lp-header .lp-back{position:absolute;left:12px;background:none;border:none;
+color:#58a6ff;cursor:pointer;font-size:13px;padding:4px 6px;}
+.lp-header .lp-title{font-size:16px;font-weight:700;letter-spacing:1px;color:#e6edf3;}
+.lp-body{flex:1;overflow-y:auto;display:flex;flex-direction:column;
+align-items:center;padding:20px 16px 24px;gap:0;}
+.lp-body::-webkit-scrollbar{width:3px;}
+.lp-body::-webkit-scrollbar-thumb{background:#21262d;}
+.flip-card{width:90px;height:90px;font-size:46px;border-radius:18px;
+background:#161b22;border:2px solid #30363d;
+display:flex;align-items:center;justify-content:center;
+cursor:pointer;transition:transform .18s ease,border-color .2s;
+flex-shrink:0;}
+.flip-card.flipping{transform:rotateY(90deg);}
+.flip-hint{font-size:9px;color:#484f58;letter-spacing:1px;margin-top:6px;}
+.lp-name{font-size:15px;font-weight:700;color:#e6edf3;margin-top:12px;letter-spacing:.5px;}
+.lp-desc{font-size:11px;color:#8b949e;margin-top:4px;text-align:center;line-height:1.6;}
+.lp-divider{width:80%;height:1px;background:#21262d;margin:16px 0 10px;}
+.lp-label{font-size:10px;color:#484f58;letter-spacing:2px;
+font-family:'MS Gothic','Gothic',monospace;margin-bottom:10px;align-self:flex-start;}
+.badge-row{display:flex;gap:8px;flex-wrap:wrap;width:100%;}
+.badge-sm{width:36px;height:36px;border-radius:10px;background:#161b22;
+border:1px solid #30363d;display:flex;align-items:center;justify-content:center;
+font-size:20px;cursor:pointer;transition:border-color .15s,transform .1s;flex-shrink:0;}
+.badge-sm:hover{transform:scale(1.1);}
+.badge-sm.active{border-color:#ffa657;background:#21262d;}
+/* Lencana di profil: 25×25 */
+.lbadge{width:25px;height:25px;font-size:13px;cursor:pointer;
+display:flex;align-items:center;justify-content:center;
+border-radius:6px;border:1px solid #30363d;background:#161b22;
+transition:transform .1s,border-color .15s;}
+.lbadge:hover{transform:scale(1.15);}
+
+/* ── Trophy La Liga (di bawah bio, My Personality) ── */
+.trofi-wrap{display:flex;flex-direction:column;width:100%;gap:6px;}
+.trofi-row{display:flex;align-items:center;gap:10px;padding:8px 10px;
+border-radius:10px;background:#161b22;border:1px solid #21262d;cursor:pointer;
+transition:border-color .15s,background .15s;}
+.trofi-row:hover{border-color:#30363d;background:#1c2128;}
+.trofi-ico{font-size:20px;flex-shrink:0;width:26px;text-align:center;}
+.trofi-label{font-size:12px;color:#e6edf3;flex:1;text-align:left;letter-spacing:.3px;}
+.trofi-count{font-size:13px;font-weight:700;letter-spacing:.5px;}
+.trofi-row.emas .trofi-count{color:#f7c948;}
+.trofi-row.perak .trofi-count{color:#c9d1d9;}
+.trofi-row.perunggu .trofi-count{color:#cd7f32;}
+.trofi-chev{font-size:10px;color:#484f58;flex-shrink:0;}
+
+/* ── Panel Detail Liga (slide dari kanan icon-bar, sama pola lencana-page) ── */
+.trofi-page{position:fixed;left:var(--icon-bar-w);right:0;
+top:0;bottom:0;background:#0d1117;z-index:21;
+display:none;flex-direction:column;overflow:hidden;
+transition:left .25s ease;}
+.trofi-page.open{display:flex;}
+.trofi-page.sub-open{left:calc(var(--icon-bar-w) + var(--sub-bar-w));}
+.tp-header{display:flex;align-items:center;justify-content:center;
+height:var(--header-h);padding:0 16px;flex-shrink:0;
+background:#161b22;border-bottom:1px solid #21262d;position:relative;
+cursor:pointer;}
+.tp-header:active{background:#1c2128;}
+.tp-header .tp-title{font-size:15px;font-weight:700;letter-spacing:1px;}
+.tp-body{flex:1;overflow-y:auto;padding:16px 16px 24px;display:flex;flex-direction:column;gap:10px;}
+.tp-body::-webkit-scrollbar{width:3px;}
+.tp-body::-webkit-scrollbar-thumb{background:#21262d;}
+.tp-card{background:#161b22;border:1px solid #21262d;border-radius:12px;padding:12px 14px;}
+.tp-card-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.tp-card-ico{font-size:18px;}
+.tp-card-name{font-size:13px;font-weight:700;color:#e6edf3;letter-spacing:.3px;}
+.tp-stat-row{display:flex;gap:10px;}
+.tp-stat{flex:1;background:#0d1117;border-radius:8px;padding:8px 10px;text-align:center;}
+.tp-stat .tp-stat-num{font-size:16px;font-weight:700;display:block;}
+.tp-stat.win .tp-stat-num{color:#3fb950;}
+.tp-stat.lose .tp-stat-num{color:#f85149;}
+.tp-stat .tp-stat-lbl{font-size:9px;color:#484f58;letter-spacing:1px;
+font-family:'MS Gothic','Gothic',monospace;margin-top:2px;display:block;}
+
+/* ── Icon preview tooltip (long-press icon bar) ── */
+.icon-preview{position:fixed;left:calc(var(--icon-bar-w) + 8px);
+background:#1c2128;border:1px solid #30363d;border-radius:14px;
+padding:10px 14px;display:flex;flex-direction:column;align-items:center;gap:4px;
+z-index:200;pointer-events:none;
+opacity:0;transform:scale(.85) translateX(-4px);
+transition:opacity .15s,transform .15s;box-shadow:0 4px 20px rgba(0,0,0,.5);}
+.icon-preview.show{opacity:1;transform:scale(1) translateX(0);pointer-events:none;}
+.icon-preview .ip-ico{font-size:30px;}
+.icon-preview .ip-lbl{font-size:10px;color:#8b949e;letter-spacing:1px;
+font-family:'MS Gothic','Gothic',monospace;white-space:nowrap;}
+
+
+.notif-btn{width:32px;height:32px;border-radius:8px;background:none;border:none;
+font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+position:relative;flex-shrink:0;transition:background .15s;}
+.notif-btn:hover{background:#21262d;}
+.notif-dot{position:absolute;top:4px;right:4px;width:7px;height:7px;
+border-radius:50%;background:#f85149;border:1.5px solid #161b22;
+animation:pulse 2s infinite;}
+
+/* ── Notif popup ── */
+.notif-popup{position:fixed;top:calc(var(--header-h) + 6px);right:8px;
+width:260px;background:#161b22;border:1px solid #30363d;border-radius:14px;
+z-index:100;overflow:hidden;
+box-shadow:0 6px 24px rgba(0,0,0,.5);
+transform:scale(.92) translateY(-8px);opacity:0;
+transition:transform .2s,opacity .2s;pointer-events:none;}
+.notif-popup.show{transform:scale(1) translateY(0);opacity:1;pointer-events:auto;}
+.notif-popup-head{padding:10px 14px 8px;font-size:10px;color:#484f58;
+letter-spacing:1.5px;font-family:'MS Gothic','Gothic',monospace;
+border-bottom:1px solid #21262d;}
+.notif-item{padding:10px 14px;border-top:1px solid #1c2128;}
+.notif-item:first-of-type{border-top:none;}
+.notif-item .ni-title{font-size:12px;font-weight:700;color:#e6edf3;margin-bottom:3px;}
+.notif-item .ni-body{font-size:11px;color:#8b949e;line-height:1.5;}
+.notif-item .ni-time{font-size:9px;color:#484f58;margin-top:4px;
+font-family:'MS Gothic','Gothic',monospace;letter-spacing:.5px;}
+.notif-item.unread .ni-title{color:#58a6ff;}
+.notif-item.unread{background:#0d1a2e;}
+
+/* ── Interstitial Peringkat Sementara ── */
+.rank-inter{position:fixed;left:var(--icon-bar-w);right:0;
+top:0;bottom:0;background:#0d1117;z-index:19;
+display:none;flex-direction:column;overflow:hidden;}
+.rank-inter.open{display:flex;}
+.rank-inter-head{display:flex;align-items:center;justify-content:center;
+height:var(--header-h);background:#161b22;border-bottom:1px solid #21262d;
+flex-shrink:0;gap:8px;}
+.rank-inter-head .ri-soal{font-size:10px;color:#484f58;letter-spacing:2px;
+font-family:'MS Gothic','Gothic',monospace;}
+.rank-inter-head .ri-title{font-size:14px;font-weight:700;color:#e6edf3;letter-spacing:1px;}
+.rank-inter-body{flex:1;overflow:hidden;padding:12px 16px 8px;
+display:flex;flex-direction:column;gap:7px;position:relative;}
+.ri-card{display:flex;align-items:center;gap:10px;
+background:#161b22;border:1px solid #21262d;border-radius:12px;
+padding:10px 12px;position:absolute;left:16px;right:16px;
+transition:top .55s cubic-bezier(.4,0,.2,1),opacity .3s;}
+.ri-card.rank-1{border-color:#f7c948;}
+.ri-card.rank-2{border-color:#c9d1d9;}
+.ri-card.rank-3{border-color:#cd7f32;}
+.ri-rank{font-size:17px;width:28px;text-align:center;flex-shrink:0;}
+.ri-ava{width:34px;height:34px;border-radius:50%;background:#21262d;
+display:flex;align-items:center;justify-content:center;font-size:17px;
+border:2px solid #30363d;flex-shrink:0;}
+.ri-name{flex:1;font-size:13px;font-weight:700;min-width:0;}
+.ri-pts{font-size:15px;font-weight:800;color:#58a6ff;flex-shrink:0;}
+.ri-delta{font-size:10px;font-weight:700;letter-spacing:.5px;
+flex-shrink:0;width:28px;text-align:right;}
+.ri-delta.up{color:#3fb950;}
+.ri-delta.down{color:#f85149;}
+.ri-delta.same{color:#484f58;}
+.rank-inter-foot{display:flex;align-items:center;justify-content:center;
+padding:10px;flex-shrink:0;}
+.ri-next-bar{width:100%;max-width:300px;height:4px;background:#21262d;
+border-radius:2px;overflow:hidden;}
+.ri-next-fill{height:100%;background:#1f6feb;border-radius:2px;
+transition:width linear;}
+
+/* ── Halaman Scoreboard ── */
+.score-page{position:fixed;left:var(--icon-bar-w);right:0;
+top:0;bottom:0;background:#0d1117;z-index:18;
+display:none;flex-direction:column;overflow:hidden;
+transition:left .25s ease;}
+.score-page.open{display:flex;}
+.score-page.sub-open{left:calc(var(--icon-bar-w) + var(--sub-bar-w));}
+.score-header{display:flex;align-items:center;justify-content:center;
+height:var(--header-h);background:#161b22;border-bottom:1px solid #21262d;
+font-size:15px;font-weight:700;letter-spacing:1px;flex-shrink:0;}
+.score-body{flex:1;overflow-y:auto;padding:16px 16px 24px;
+display:flex;flex-direction:column;gap:10px;}
+.score-body::-webkit-scrollbar{width:3px;}
+.score-body::-webkit-scrollbar-thumb{background:#21262d;}
+.score-title{text-align:center;font-size:11px;color:#484f58;
+letter-spacing:2px;font-family:'MS Gothic','Gothic',monospace;padding-bottom:4px;}
+.score-card{display:flex;align-items:center;gap:12px;
+background:#161b22;border:1px solid #21262d;border-radius:14px;
+padding:12px 14px;transition:all .4s ease;position:relative;overflow:hidden;}
+.score-card.rank-1{border-color:#f7c948;background:#1a1600;}
+.score-card.rank-2{border-color:#c9d1d9;background:#141618;}
+.score-card.rank-3{border-color:#cd7f32;background:#180e06;}
+.score-rank{font-size:20px;width:32px;text-align:center;flex-shrink:0;}
+.score-ava{width:40px;height:40px;border-radius:50%;background:#21262d;
+display:flex;align-items:center;justify-content:center;font-size:20px;
+border:2px solid #30363d;flex-shrink:0;}
+.score-info{flex:1;min-width:0;}
+.score-name{font-size:13px;font-weight:700;color:#e6edf3;letter-spacing:.3px;}
+.score-detail{font-size:10px;color:#484f58;margin-top:2px;letter-spacing:.5px;
+font-family:'MS Gothic','Gothic',monospace;}
+.score-pts{font-size:18px;font-weight:800;color:#58a6ff;
+letter-spacing:.5px;flex-shrink:0;}
+.score-pts-lbl{font-size:9px;color:#484f58;text-align:right;letter-spacing:1px;
+font-family:'MS Gothic','Gothic',monospace;margin-top:1px;}
+.score-bar-bg{position:absolute;bottom:0;left:0;right:0;height:3px;background:#21262d;}
+.score-bar-fill{position:absolute;bottom:0;left:0;height:3px;
+background:#1f6feb;border-radius:0 2px 2px 0;
+transition:width .8s ease;}
+.score-footer{display:flex;align-items:center;justify-content:center;
+padding:14px 20px 20px;flex-shrink:0;}
+.score-selesai-btn{background:#1f6feb;border:none;color:#fff;font-size:14px;
+font-weight:700;letter-spacing:.5px;padding:13px 0;width:100%;max-width:280px;
+border-radius:14px;cursor:pointer;display:flex;align-items:center;
+justify-content:center;gap:8px;}
+.score-selesai-btn:active{background:#388bfd;}
+
+/* ── Liga Wait: Vote Waktu ── */
+.liga-wait-wrap{display:flex;flex-direction:column;width:100%;height:100%;}
+.liga-wait-grid{flex:1;overflow-y:auto;display:grid;
+grid-template-columns:repeat(auto-fill,minmax(84px,1fr));
+gap:14px;padding:20px 16px 12px;align-content:start;}
+.liga-wait-bottom{display:flex;flex-direction:column;align-items:center;
+gap:8px;padding:10px 20px 20px;flex-shrink:0;
+border-top:1px solid #21262d;background:#0d1117;}
+.lw-vote-hint{font-size:10px;color:#484f58;letter-spacing:1.5px;
+font-family:'MS Gothic','Gothic',monospace;margin-bottom:2px;}
+.lw-vote-row{display:flex;gap:10px;justify-content:center;width:100%;}
+.lw-vote-btn{flex:1;max-width:80px;background:#161b22;border:1px solid #30363d;
+border-radius:12px;color:#8b949e;font-size:14px;font-weight:700;
+padding:10px 0;cursor:pointer;display:flex;flex-direction:column;
+align-items:center;gap:3px;transition:border-color .15s,background .15s,color .15s;
+font-family:inherit;}
+.lw-vote-btn.selected{background:#1f3a5c;border-color:#1f6feb;color:#58a6ff;}
+.lw-vote-btn .lw-vote-count{font-size:9px;letter-spacing:1px;
+font-family:'MS Gothic','Gothic',monospace;
+color:#484f58;margin-top:1px;}
+.lw-vote-btn.selected .lw-vote-count{color:#58a6ff;}
+.lw-waiting-lbl{font-size:11px;color:#484f58;letter-spacing:1px;
+font-family:'MS Gothic','Gothic',monospace;padding-top:4px;}
+.rt-wrap{display:flex;flex-direction:column;width:100%;height:100%;}
+.rt-head{display:flex;align-items:center;justify-content:center;gap:8px;
+padding:20px 16px 6px;flex-shrink:0;}
+.rt-head-ico{font-size:24px;}
+.rt-head-name{font-size:16px;font-weight:700;color:#e6edf3;letter-spacing:.5px;}
+.rt-sub{text-align:center;font-size:10px;color:#484f58;letter-spacing:1px;
+font-family:'MS Gothic','Gothic',monospace;padding-bottom:14px;flex-shrink:0;}
+.rt-grid{flex:1;overflow-y:auto;display:grid;
+grid-template-columns:repeat(auto-fill,minmax(84px,1fr));
+gap:14px;padding:6px 16px 20px;align-content:start;}
+.rt-join-bar{display:flex;flex-direction:column;align-items:center;gap:10px;
+padding:14px 20px 22px;flex-shrink:0;}
+.rt-join-btn{background:#1f6feb;border:none;color:#fff;font-size:14px;font-weight:700;
+letter-spacing:.5px;padding:13px 0;width:100%;max-width:280px;border-radius:14px;
+cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;}
+.rt-join-btn:active{background:#388bfd;}
+.rt-back-btn{background:none;border:1px solid #30363d;border-radius:10px;
+color:#8b949e;font-size:12px;padding:9px 26px;cursor:pointer;
+font-family:inherit;letter-spacing:.5px;}
+</style></head><body>
+
+<div class="icon-bar">
+  <div class="logo-slot">🎓</div>
+  <div class="top">
+    <div class="i-btn room"      onclick="toggleSub('room')"      title="My Personality">👤</div>
+    <div class="i-btn tuantanah" onclick="toggleSub('tuantanah')" title="Organisasi">🎭</div>
+    <div class="i-btn liga"      onclick="toggleSub('liga')"      title="La Liga">🏆</div>
+    <div class="i-btn materi"    onclick="toggleSub('materi')"    title="Materi">📚</div>
+    <div class="i-btn latihan"   onclick="toggleSub('latihan')"   title="Latihan Soal">📝</div>
+    <div class="i-btn cafetaria" onclick="toggleSub('cafetaria')" title="Cafetaria">🍽</div>
+  </div>
+  <div class="bot">
+    <div class="i-btn sm settings" title="Pengaturan" onclick="alert('Pengaturan')">⚙️</div>
+    <div class="i-btn sm" title="Logout" onclick="window.location.href='/logout'">🔒</div>
+  </div>
+</div>
+
+<div class="sub-bar" id="subBar">
+  <div class="sub-title" id="subTitle"></div>
+  <div class="sub-content" id="subContent"></div>
+</div>
+
+<div class="header" id="header">
+  <h1>Mimbar Bebas — __USERNAME__</h1>
+  <button class="notif-btn" onclick="toggleNotif(event)" title="Notifikasi">
+    ✉️<span class="notif-dot" id="notifDot"></span>
+  </button>
+</div>
+
+<div class="news-ticker" id="newsTicker">
+  <div class="news-ticker-track">
+    <span>📢 PENGUMUMAN PENTING — JADWAL UJIAN AKAN DIUMUMKAN MINGGU INI, HARAP CEK MATERI SECARA RUTIN</span>
+    <span>📢 PENGUMUMAN PENTING — JADWAL UJIAN AKAN DIUMUMKAN MINGGU INI, HARAP CEK MATERI SECARA RUTIN</span>
+  </div>
+</div>
+
+<div class="chat-wrap" id="chatWrap">
+  <div class="chat-box" id="chatBox">
+    <div class="msg-system" id="chatLoadingMsg">Memuat pesan...</div>
+  
+  </div>
+  <button class="scroll-bottom-btn" id="scrollBottomBtn" onclick="scrollChatKeBawah()">
+    ↓<span class="sb-badge" id="scrollBottomBadge" style="display:none;">0</span>
+  </button>
+  <div class="status-bar" id="statusBar">
+    <div class="status-pill">
+      <div class="status-dot on"></div>
+      <span class="cnt" id="onlineCount">0</span>
+      <span class="lbl">online</span>
+    </div>
+    <div class="status-sep"></div>
+    <div class="status-pill">
+      <div class="status-dot off"></div>
+      <span class="cnt" id="offlineCount">0</span>
+      <span class="lbl">offline</span>
+    </div>
+  </div>
+  <div class="chat-input-bar">
+    <div class="media-preview-bar" id="mediaPreviewBar"></div>
+    <div class="input-wrapper">
+      <button class="btn-plus" onclick="toggleAttach()">+</button>
+      <input type="text" id="chatInput" placeholder="Tulis pesan..." onkeydown="if(event.key==='Enter')kirimPesan()">
+      <button onclick="kirimPesan()">➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- hidden file inputs -->
+<input type="file" id="fileImgVid" accept="image/*,video/*" style="display:none" onchange="handleMediaFile(this)">
+
+<div class="attach-overlay" id="attachOverlay" onclick="tutupAttach()"></div>
+<div class="attach-menu" id="attachMenu">
+  <div class="attach-menu-row">
+    <button class="attach-btn file"   onclick="tutupAttach();document.getElementById('fileImgVid').click()"><div class="ico">📄</div><span class="lbl">File</span></button>
+    <button class="attach-btn galeri" onclick="tutupAttach();document.getElementById('fileImgVid').click()"><div class="ico">🖼</div><span class="lbl">Galeri</span></button>
+  </div>
+</div>
+
+<!-- Reaction popup -->
+<div class="react-popup" id="reactPopup">
+  <span onclick="addReaction('👍')">👍</span>
+  <span onclick="addReaction('❤️')">❤️</span>
+  <span onclick="addReaction('😂')">😂</span>
+  <span onclick="addReaction('😮')">😮</span>
+  <span onclick="addReaction('😢')">😢</span>
+  <span onclick="addReaction('🔥')">🔥</span>
+</div>
+
+<!-- Lencana Page -->
+<div id="lencanaPage" class="lencana-page">
+  <div class="lp-header" onclick="tutupSlideKanan()">
+    <span class="lp-title">My Pride</span>
+  </div>
+  <div class="lp-body" id="lpBody">
+    <!-- rendered by JS -->
+  </div>
+</div>
+
+<!-- Trofi Detail Page (slide kanan dari My Personality) -->
+<div id="trofiPage" class="trofi-page">
+  <div class="tp-header" onclick="tutupSlideKanan()">
+    <span class="tp-title" id="tpTitle">Trofi</span>
+  </div>
+  <div class="tp-body" id="tpBody">
+    <!-- rendered by JS -->
+  </div>
+</div>
+
+<!-- Halaman: Struktur Dewan Mimbar -->
+<div id="pageDewan" class="org-page">
+  <div class="dewan-wrap">
+    <!-- Kaisar & Daimyo setara (row) -->
+    <div style="display:flex;gap:16px;justify-content:center;width:100%;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:0;">
+        <div class="dewan-box kaisar" onclick="bukaDewaProfile('kaisar')">👑</div>
+        <div style="font-size:9px;color:#ffa657;letter-spacing:1px;margin-top:4px;">Kaisar</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:0;">
+        <div class="dewan-box daimyo" onclick="bukaDewaProfile('daimyo')">⚔️</div>
+        <div style="font-size:9px;color:#58a6ff;letter-spacing:1px;margin-top:4px;">Daimyo</div>
+      </div>
+    </div>
+    <!-- garis turun dari tengah ke samurai -->
+    <div style="width:1px;height:20px;background:#30363d;"></div>
+    <!-- garis horizontal penghubung 4 samurai -->
+    <div style="position:relative;width:80%;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+      <div style="position:absolute;top:0;left:12.5%;right:12.5%;height:1px;background:#30363d;"></div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+        <div style="width:1px;height:16px;background:#30363d;"></div>
+        <div class="dewan-box samurai" onclick="bukaDewaProfile('samurai1')">🗡</div>
+        <div style="font-size:8px;color:#56d364;letter-spacing:.5px;margin-top:3px;">Samurai 1</div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+        <div style="width:1px;height:16px;background:#30363d;"></div>
+        <div class="dewan-box samurai" onclick="bukaDewaProfile('samurai2')">🗡</div>
+        <div style="font-size:8px;color:#56d364;letter-spacing:.5px;margin-top:3px;">Samurai 2</div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+        <div style="width:1px;height:16px;background:#30363d;"></div>
+        <div class="dewan-box samurai" onclick="bukaDewaProfile('samurai3')">🗡</div>
+        <div style="font-size:8px;color:#56d364;letter-spacing:.5px;margin-top:3px;">Samurai 3</div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+        <div style="width:1px;height:16px;background:#30363d;"></div>
+        <div class="dewan-box samurai" onclick="bukaDewaProfile('samurai4')">🗡</div>
+        <div style="font-size:8px;color:#56d364;letter-spacing:.5px;margin-top:3px;">Samurai 4</div>
+      </div>
+    </div>
+  </div>
+  <button onclick="tutupOrgPageKeChat()"
+    style="margin:0 auto 24px;background:none;border:1px solid #30363d;border-radius:10px;
+    color:#8b949e;font-size:12px;padding:10px 18px;cursor:pointer;
+    font-family:inherit;letter-spacing:.5px;">← Kembali ke Chat</button>
+</div>
+
+<!-- Profil Popup Dewan -->
+<div class="dewan-profil-overlay" id="dewanProfilOverlay" onclick="tutupDewaProfile()"></div>
+<div class="dewan-profil-card" id="dewanProfilCard">
+  <div class="dp-banner" id="dpBanner"></div>
+  <div class="dp-ava-wrap">
+    <div class="dp-avatar" id="dpAvatar"></div>
+  </div>
+  <div class="dp-name"     id="dpName"></div>
+  <div class="dp-username" id="dpUsername"></div>
+  <div class="dp-role"     id="dpRole"></div>
+  <div class="dp-divider"></div>
+  <div class="dp-section-label">LENCANA</div>
+  <div class="dp-lencana-row" id="dpLencana"></div>
+  <div class="dp-divider"></div>
+  <div class="dp-section-label">TUGAS</div>
+  <div class="dp-tugas-wrap" id="dpTugas"></div>
+  <button class="dp-close" onclick="tutupDewaProfile()">Tutup</button>
+</div>
+
+<!-- Halaman: Profil Admin (My Lord) -->
+<div id="pageMyLord" class="org-page">
+  <div style="display:flex;flex-direction:column;align-items:center;
+    padding:28px 20px 32px;gap:14px;width:100%;">
+    <!-- Pas Foto -->
+    <div style="width:100px;height:100px;border-radius:50%;
+      background:#21262d;border:3px solid #ffa657;
+      display:flex;align-items:center;justify-content:center;
+      font-size:52px;overflow:hidden;flex-shrink:0;">👑</div>
+    <!-- Lencana -->
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+      <div style="width:36px;height:36px;border-radius:10px;background:#161b22;
+        border:1px solid #ffa657;display:flex;align-items:center;
+        justify-content:center;font-size:20px;">🏅</div>
+      <div style="width:36px;height:36px;border-radius:10px;background:#161b22;
+        border:1px solid #f7c948;display:flex;align-items:center;
+        justify-content:center;font-size:20px;">⭐</div>
+      <div style="width:36px;height:36px;border-radius:10px;background:#161b22;
+        border:1px solid #f78166;display:flex;align-items:center;
+        justify-content:center;font-size:20px;">🔥</div>
+    </div>
+    <!-- Teks centre -->
+    <div style="font-size:16px;font-weight:700;color:#e6edf3;letter-spacing:.5px;">Shogun Agung</div>
+    <div style="font-size:11px;color:#ffa657;letter-spacing:2px;
+      font-family:'MS Gothic','Gothic',monospace;">KAISAR · Owner</div>
+    <div style="width:60%;height:1px;background:#21262d;"></div>
+    <div style="font-size:12px;color:#8b949e;text-align:center;line-height:1.8;max-width:220px;">
+      Pemimpin tertinggi komunitas.<br>Pemegang keputusan utama<br>dan penjaga nilai organisasi.
+    </div>
+    <button onclick="tutupOrgPageKeChat()"
+      style="margin-top:10px;background:none;border:1px solid #30363d;border-radius:10px;
+      color:#8b949e;font-size:12px;padding:10px 18px;cursor:pointer;
+      font-family:inherit;letter-spacing:.5px;">← Kembali ke Chat</button>
+  </div>
+</div>
+
+<!-- Halaman: Tata Tertib (Rule) -->
+<div id="pageRule" class="org-page">
+  <div class="rule-wrap">
+    <div style="font-size:10px;color:#484f58;letter-spacing:2px;
+      font-family:'MS Gothic','Gothic',monospace;margin-bottom:4px;">— TATA TERTIB —</div>
+    <div class="rule-section">
+      <div class="rule-head">📌 Umum</div>
+      <div class="rule-list">
+        <div class="rule-item"><span class="rule-num">01.</span><span>Hormati sesama anggota. Dilarang menghina, merendahkan, atau menyerang personal.</span></div>
+        <div class="rule-item"><span class="rule-num">02.</span><span>Gunakan bahasa yang sopan dan mudah dipahami dalam setiap komunikasi.</span></div>
+        <div class="rule-item"><span class="rule-num">03.</span><span>Dilarang menyebarkan informasi palsu (hoaks) di dalam forum.</span></div>
+      </div>
+    </div>
+    <div class="rule-section">
+      <div class="rule-head">💬 Forum & Chat</div>
+      <div class="rule-list">
+        <div class="rule-item"><span class="rule-num">04.</span><span>Posting sesuai topik pada masing-masing ruangan yang tersedia.</span></div>
+        <div class="rule-item"><span class="rule-num">05.</span><span>Dilarang spam, flood, atau mengirim pesan berulang tanpa makna.</span></div>
+        <div class="rule-item"><span class="rule-num">06.</span><span>Iklan atau promosi tanpa izin admin akan dihapus dan dikenakan sanksi.</span></div>
+      </div>
+    </div>
+    <div class="rule-section">
+      <div class="rule-head">⚖️ Sanksi</div>
+      <div class="rule-list">
+        <div class="rule-item"><span class="rule-num">07.</span><span>Pelanggaran pertama: peringatan tertulis dari Samurai/Panglima.</span></div>
+        <div class="rule-item"><span class="rule-num">08.</span><span>Pelanggaran kedua: pembatasan akses selama 3 hari.</span></div>
+        <div class="rule-item"><span class="rule-num">09.</span><span>Pelanggaran ketiga: dikeluarkan dari komunitas oleh Kaisar.</span></div>
+      </div>
+    </div>
+    <button onclick="tutupOrgPageKeChat()"
+      style="margin-top:6px;background:none;border:1px solid #30363d;border-radius:10px;
+      color:#8b949e;font-size:12px;padding:10px;cursor:pointer;
+      font-family:inherit;letter-spacing:.5px;">← Kembali ke Chat</button>
+  </div>
+</div>
+
+<!-- Halaman: Status Anggota — Hak & Kewajiban -->
+<div id="pageStatus" class="org-page" style="z-index:25;">
+  <div class="rule-wrap">
+    <div style="font-size:10px;color:#484f58;letter-spacing:2px;
+      font-family:'MS Gothic','Gothic',monospace;margin-bottom:4px;">— ANGGOTA BIASA —</div>
+
+    <div class="rule-section">
+      <div class="rule-head">✅ Hak Anggota</div>
+      <div class="rule-list">
+        <div class="rule-item"><span class="rule-num">01.</span><span>Mengakses semua ruang diskusi, latihan soal, dan materi pembelajaran yang tersedia.</span></div>
+        <div class="rule-item"><span class="rule-num">02.</span><span>Berpartisipasi dalam Liga dan kompetisi antar anggota komunitas.</span></div>
+        <div class="rule-item"><span class="rule-num">03.</span><span>Bergabung dan berinteraksi di ruang Cafetaria bersama anggota lain.</span></div>
+        <div class="rule-item"><span class="rule-num">04.</span><span>Mendapatkan lencana dan penghargaan atas kontribusi dan prestasi belajar.</span></div>
+        <div class="rule-item"><span class="rule-num">05.</span><span>Mengajukan pertanyaan dan meminta bantuan kepada Samurai atau sesama anggota.</span></div>
+        <div class="rule-item"><span class="rule-num">06.</span><span>Memberikan masukan atau saran kepada pengurus melalui jalur yang tersedia.</span></div>
+      </div>
+    </div>
+
+    <div class="rule-section">
+      <div class="rule-head">📌 Kewajiban Anggota</div>
+      <div class="rule-list">
+        <div class="rule-item"><span class="rule-num">01.</span><span>Mematuhi seluruh tata tertib dan peraturan yang berlaku dalam komunitas.</span></div>
+        <div class="rule-item"><span class="rule-num">02.</span><span>Menjaga etika, sopan santun, dan rasa hormat kepada sesama anggota dan pengurus.</span></div>
+        <div class="rule-item"><span class="rule-num">03.</span><span>Aktif berkontribusi dalam diskusi dan kegiatan pembelajaran secara positif.</span></div>
+        <div class="rule-item"><span class="rule-num">04.</span><span>Tidak menyebarkan informasi palsu, konten negatif, atau materi yang melanggar aturan.</span></div>
+        <div class="rule-item"><span class="rule-num">05.</span><span>Menggunakan fasilitas komunitas sesuai tujuan pembelajaran dan pengembangan diri.</span></div>
+        <div class="rule-item"><span class="rule-num">06.</span><span>Menjaga kerahasiaan data pribadi sesama anggota dan tidak menyalahgunakannya.</span></div>
+      </div>
+    </div>
+
+    <button onclick="tutupStatusPage()"
+      style="margin-top:6px;background:none;border:1px solid #30363d;border-radius:10px;
+      color:#8b949e;font-size:12px;padding:10px;cursor:pointer;
+      font-family:inherit;letter-spacing:.5px;">← Kembali ke Profil</button>
+  </div>
+</div>
+
+<!-- Pita nama lagu (running text) — muncul di atas Room Bar saat musik diputar -->
+<div id="musicTicker" class="music-ticker">
+  <span class="music-ticker-icon">🎵</span>
+  <div class="music-ticker-track"><span id="musicTickerText" class="music-ticker-text"></span></div>
+</div>
+
+<!-- Room Bar (Voice) — muncul sebagai footer bar, bukan full-screen -->
+<div id="roomPage" class="room-bar">
+  <div class="room-bar-toprow">
+    <div class="room-bar-head">
+      <div class="room-bar-title" id="roomPageTitle">Room</div>
+      <div class="room-bar-master" id="roomPageMaster">Room Master: —</div>
+      <div class="room-bar-status">
+        <span class="rh-sub" id="roomPageStatus">LIVE</span>
+        <span class="rh-count" id="roomPageCount">0/5</span>
+      </div>
+    </div>
+    <div class="room-bar-strip" id="roomGrid"></div>
+  </div>
+  <div class="room-bar-controls">
+    <button class="room-ctrl-btn music" id="roomMusicBtn" onclick="toggleMusicPopup()">🎵</button>
+    <button class="room-ctrl-btn mic-off" id="roomMicBtn" onclick="toggleMyMic()">🎤</button>
+    <button class="room-ctrl-btn speaker-on" id="roomSpeakerBtn" onclick="toggleMySpeaker()">🔊</button>
+    <button class="room-ctrl-btn leave" onclick="tutupRoomPage()">📞</button>
+  </div>
+</div>
+
+<!-- Popup List Musik Room -->
+<div id="musicPopupOverlay" class="music-popup-overlay" onclick="tutupMusicPopup()"></div>
+<div id="musicPopup" class="music-popup">
+  <div class="music-popup-head">
+    <span>🎵 Musik Room</span>
+    <button class="music-popup-close" onclick="tutupMusicPopup()">✕</button>
+  </div>
+  <div class="music-popup-list" id="musicPopupList">
+    <div class="music-empty">Memuat...</div>
+  </div>
+  <div class="music-popup-upload" id="musicPopupUpload">
+    <label class="music-upload-btn">
+      + Tambah lagu (mp3)
+      <input type="file" accept=".mp3,audio/mpeg" id="musicUploadInput" onchange="uploadMusikRoom(this)" style="display:none">
+    </label>
+  </div>
+</div>
+<audio id="roomMusicAudio" preload="auto"></audio>
+
+
+<!-- Halaman Item Generik (Latihan & Materi full page) -->
+<div id="itemPage" class="org-page">
+  <div class="rt-wrap">
+    <div class="rt-grid" id="ipGrid"></div>
+    <div class="rt-join-bar">
+      <button class="rt-back-btn" onclick="tutupItemPage()" style="width:100%;max-width:280px;padding:13px;font-size:13px;border-radius:14px;border-color:#484f58;">← Kembali ke Chat</button>
+    </div>
+  </div>
+</div>
+
+<!-- Halaman Full (Room Tunggu) -->
+<div id="itemFullPage" class="org-page" style="z-index:17;">
+  <div class="rt-wrap">
+    <div class="rt-grid" id="ifGrid"></div>
+    <div class="rt-join-bar">
+      <button class="rt-join-btn" id="ifJoinBtn">🎙 Gabung Room</button>
+      <button class="rt-back-btn" onclick="tutupItemFullPage()">← Kembali</button>
+    </div>
+  </div>
+</div>
+
+<!-- Halaman Ruang Tunggu Liga (klik item La Liga) -->
+<div id="ligaWaitPage" class="org-page" style="z-index:17;">
+  <div class="liga-wait-wrap">
+    <div class="liga-wait-grid" id="lwGrid"></div>
+    <div class="liga-wait-bottom">
+      <div class="lw-vote-hint">▸ PILIH WAKTU UNTUK MEMULAI</div>
+      <div class="lw-vote-row" id="lwVoteRow">
+        <button class="lw-vote-btn" data-sek="3" onclick="pilihWaktuLiga(this,3)">
+          3 dtk<span class="lw-vote-count" id="vote3">0 suara</span>
+        </button>
+        <button class="lw-vote-btn" data-sek="4" onclick="pilihWaktuLiga(this,4)">
+          4 dtk<span class="lw-vote-count" id="vote4">0 suara</span>
+        </button>
+        <button class="lw-vote-btn" data-sek="5" onclick="pilihWaktuLiga(this,5)">
+          5 dtk<span class="lw-vote-count" id="vote5">0 suara</span>
+        </button>
+      </div>
+      <div class="lw-waiting-lbl" id="lwWaitingLbl">Menunggu semua peserta memilih…</div>
+    </div>
+  </div>
+</div>
+
+<!-- Halaman Soal Pilihan Ganda (setelah klik Mulai di Ruang Tunggu Liga) -->
+<div id="soalPage" class="org-page" style="z-index:17;">
+  <div class="soal-wrap">
+    <div class="soal-body">
+      <div class="soal-progress" id="soalProgress">SOAL 1 / 5</div>
+      <div class="soal-timer" id="soalTimer">5</div>
+      <div class="soal-question" id="soalQuestion">Memuat soal…</div>
+      <div class="soal-opts-vert" id="soalOptsVert"></div>
+    </div>
+    <div class="soal-peserta-strip" id="soalPesertaStrip"></div>
+  </div>
+</div>
+
+<!-- Interstitial Peringkat Sementara (antar soal) -->
+<div id="rankInter" class="rank-inter">
+  <div class="rank-inter-head">
+    <span class="ri-soal" id="riSoalLabel">SETELAH SOAL 1</span>
+  </div>
+  <div class="rank-inter-body" id="riBody"></div>
+  <div class="rank-inter-foot">
+    <div class="ri-next-bar"><div class="ri-next-fill" id="riNextFill" style="width:0%"></div></div>
+  </div>
+</div>
+
+<!-- Halaman Scoreboard (setelah semua soal selesai) -->
+<div id="scorePage" class="score-page">
+  <div class="score-header">🏆 HASIL AKHIR</div>
+  <div class="score-body">
+    <div class="score-title">— PAPAN SKOR —</div>
+    <div id="scoreList"></div>
+  </div>
+  <div class="score-footer" style="gap:10px;flex-direction:column;align-items:center;">
+    <button class="score-selesai-btn" onclick="bukaTrofiDariScore()"
+      style="background:#1a2f1a;border:1px solid #3fb950;color:#3fb950;">
+      🏆 Lihat Trofi
+    </button>
+    <button class="score-selesai-btn" onclick="tutupScorePage()"
+      style="background:#161b22;border:1px solid #30363d;color:#8b949e;font-size:13px;padding:10px 0;">
+      ✓ Selesai
+    </button>
+  </div>
+</div>
+
+<!-- Halaman Review Materi (long-press Latihan/Materi) -->
+<div id="reviewMateriPage" class="org-page" style="z-index:17;">
+  <div class="rule-wrap">
+    <div class="rule-section" style="border-color:#1f6feb;">
+      <div class="rule-head" id="rmTitle" style="color:#58a6ff;">📋 Review Materi</div>
+      <div class="rule-list" id="rmList"></div>
+    </div>
+    <button onclick="tutupReviewMateri()"
+      style="margin-top:6px;background:none;border:1px solid #30363d;border-radius:10px;
+      color:#8b949e;font-size:12px;padding:10px;cursor:pointer;
+      font-family:inherit;letter-spacing:.5px;">← Kembali</button>
+  </div>
+</div>
+
+<!-- Notif popup -->
+<div class="notif-popup" id="notifPopup">
+  <div class="notif-popup-head">— NOTIFIKASI —</div>
+  <div class="notif-item unread">
+    <div class="ni-title">📌 Pengumuman Baru</div>
+    <div class="ni-body">Server maintenance malam ini jam 22.00 WIB. Harap selesaikan aktivitas sebelum waktu tersebut.</div>
+    <div class="ni-time">Hari ini • 08:20</div>
+  </div>
+  <div class="notif-item unread">
+    <div class="ni-title">📚 Tugas Baru — Modul 9</div>
+    <div class="ni-body">Latihan soal Modul 9 telah dibuka. Deadline pengumpulan jam 12.00 WIB.</div>
+    <div class="ni-time">Hari ini • 08:17</div>
+  </div>
+  <div class="notif-item">
+    <div class="ni-title">🏆 Hasil Liga N4</div>
+    <div class="ni-body">Selamat! Kamu berhasil meraih Trofi Emas di Liga N4 dengan 14 kemenangan.</div>
+    <div class="ni-time">Kemarin • 21:05</div>
+  </div>
+  <div class="notif-item">
+    <div class="ni-title">👤 Anggota Baru</div>
+    <div class="ni-body">Hendra bergabung ke komunitas. Sambut dengan hangat!</div>
+    <div class="ni-time">28 Jun • 14:30</div>
+  </div>
+</div>
+
+<!-- Icon preview tooltip -->
+<div class="icon-preview" id="iconPreview">
+  <span class="ip-ico" id="ipPreviewIco"></span>
+  <span class="ip-lbl" id="ipPreviewLbl"></span>
+</div>
+
+<script>
+/* ═══ LENCANA DATA ═══ */
+const LENCANA = [
+  {ico:'🏅', name:'Anggota Aktif',    desc:'Aktif berpartisipasi di komunitas.',         color:'#ffa657'},
+  {ico:'⭐', name:'Top Kontributor',  desc:'Kontribusi terbanyak di antara semua anggota.',color:'#f7c948'},
+  {ico:'🔥', name:'Semangat Belajar', desc:'Semangat belajar tidak pernah padam.',        color:'#f78166'},
+  {ico:'📅', name:'Rajin Hadir',      desc:'Hadir tanpa absen selama 30 hari penuh.',     color:'#56d364'},
+  {ico:'🎖', name:'Nilai Terbaik',    desc:'Meraih nilai tertinggi di modul yang diikuti.',color:'#79c0ff'},
+];
+let featuredLencana = 0;
+const activeLencana = [0, 1, 2]; // max 3 tampil di profil
+
+/* ═══ IKON PER LIGA (statis, cuma visual — datanya sendiri dari server) ═══ */
+const LIGA_ICO = {
+  'Liga N4': '🎌', 'Liga N5': '🎌', 'Liga N3': '🎌',
+  'Liga Minna 1': '🏆', 'Liga Minna 2': '🏆',
+  'Liga Choukai': '🎧', 'Liga Kanji': '🈸',
+};
+
+/* ═══ STATISTIK LA LIGA — diisi dari /api/liga/stats ═══ */
+// Bentuk: { "Liga N4": { emas:{menang,kalah}, perak:{...}, perunggu:{...} }, ... }
+let LIGA_STATS = {};
+
+async function muatLigaStats(){
+  try {
+    const res = await fetch('/api/liga/stats');
+    if(!res.ok) throw new Error('gagal');
+    LIGA_STATS = await res.json() || {};
+  } catch(e) {
+    LIGA_STATS = {};
+  }
+}
+
+// Ambil rekor menang/kalah 1 liga di 1 tier tertentu (0/0 kalau belum pernah main)
+function statLigaTier(namaLiga, tier){
+  const l = LIGA_STATS[namaLiga];
+  if(l && l[tier]) return {win: l[tier].menang||0, lose: l[tier].kalah||0};
+  return {win:0, lose:0};
+}
+
+// Susun daftar liga yang tampil di ringkasan trofi per tier (Emas/Perak/Perunggu):
+// hanya liga yang punya rekor MENANG di tier tsb (win>0) yang muncul di daftar.
+function daftarTrofiTier(tier){
+  return Object.keys(LIGA_STATS)
+    .filter(nama => (LIGA_STATS[nama][tier]?.menang || 0) > 0)
+    .map(nama => ({
+      nama, ico: LIGA_ICO[nama] || '🏆',
+      win: LIGA_STATS[nama][tier].menang,
+      lose: LIGA_STATS[nama][tier].kalah || 0,
+    }));
+}
+
+function bukaLigaPage(namaLiga){
+  const emas = statLigaTier(namaLiga, 'emas');
+  const perak = statLigaTier(namaLiga, 'perak');
+  const perunggu = statLigaTier(namaLiga, 'perunggu');
+  document.getElementById('tpTitle').textContent = namaLiga;
+  document.getElementById('tpBody').innerHTML = `
+    <div class="tp-card">
+      <div class="tp-card-head">
+        <span class="tp-card-ico">🥇</span>
+        <span class="tp-card-name" style="color:#f7c948;">Trofi Emas</span>
+      </div>
+      <div class="tp-stat-row">
+        <div class="tp-stat win"><span class="tp-stat-num">${emas.win}</span><span class="tp-stat-lbl">MENANG</span></div>
+        <div class="tp-stat lose"><span class="tp-stat-num">${emas.lose}</span><span class="tp-stat-lbl">KALAH</span></div>
+      </div>
+    </div>
+    <div class="tp-card">
+      <div class="tp-card-head">
+        <span class="tp-card-ico">🥈</span>
+        <span class="tp-card-name" style="color:#c9d1d9;">Trofi Perak</span>
+      </div>
+      <div class="tp-stat-row">
+        <div class="tp-stat win"><span class="tp-stat-num">${perak.win}</span><span class="tp-stat-lbl">MENANG</span></div>
+        <div class="tp-stat lose"><span class="tp-stat-num">${perak.lose}</span><span class="tp-stat-lbl">KALAH</span></div>
+      </div>
+    </div>
+    <div class="tp-card">
+      <div class="tp-card-head">
+        <span class="tp-card-ico">🥉</span>
+        <span class="tp-card-name" style="color:#cd7f32;">Trofi Perunggu</span>
+      </div>
+      <div class="tp-stat-row">
+        <div class="tp-stat win"><span class="tp-stat-num">${perunggu.win}</span><span class="tp-stat-lbl">MENANG</span></div>
+        <div class="tp-stat lose"><span class="tp-stat-num">${perunggu.lose}</span><span class="tp-stat-lbl">KALAH</span></div>
+      </div>
+    </div>`;
+  const pg = document.getElementById('trofiPage');
+  pg.classList.add('open');
+  if(document.getElementById('subBar').classList.contains('open'))
+    pg.classList.add('sub-open');
+  document.getElementById('lencanaPage').classList.remove('open');
+}
+
+// ── Klik item La Liga: tutup sub-bar, tampilkan Ruang Tunggu peserta ──
+let currentLiga = null;
+let ligaVotes = {3:0, 4:0, 5:0}; // suara NPC
+let myVote = null; // suara user
+let ligaPeserta = []; // peserta yang ikut liga ini
+let ligaVoteTimer = null;
+
+function bukaLigaWait(namaLiga){
+  currentLiga = namaLiga;
+  myVote = null;
+  ligaVotes = {3:0, 4:0, 5:0};
+
+  const npc = dummyRoomUsers(Math.floor(Math.random()*5));
+  ligaPeserta = [{name:'Kamu', color:'#58a6ff', online:true, voted:false, isMe:true}, ...npc.map(u=>({...u,voted:false}))];
+
+  closeSub(); // tutup sub-bar dulu, SETELAH ligaPeserta siap
+  renderLwGrid();
+  resetVoteUI();
+
+  const pg = document.getElementById('ligaWaitPage');
+  pg.classList.add('open');
+  document.querySelector('#header h1').textContent = namaLiga;
+
+  clearTimeout(ligaVoteTimer);
+  npc.forEach((u,i)=>{
+    setTimeout(()=>{
+      if(!document.getElementById('ligaWaitPage').classList.contains('open')) return;
+      const pilihan = 3;
+      ligaVotes[pilihan]++;
+      // Update ligaPeserta langsung (index +1 karena index 0 = "Kamu")
+      ligaPeserta[i+1].voted = true;
+      renderLwGrid();
+      updateVoteUI();
+      cekApakahSemuaSudahVote();
+    }, 800 + i*600 + Math.random()*400);
+  });
+}
+
+function renderLwGrid(){
+  document.getElementById('lwGrid').innerHTML = ligaPeserta.map(u=>`
+    <div class="room-member">
+      <div class="room-ava-wrap">
+        <div class="room-ava" style="border-color:${u.color}">${u.isMe?'🙂':'👤'}</div>
+      </div>
+      <span class="room-mname" style="color:${u.color}">${u.name}</span>
+      <span class="room-mrole" style="color:${u.voted||u.isMe&&myVote?'#3fb950':'#484f58'}">
+        ${u.voted||(u.isMe&&myVote)?'✓ Memilih':'Belum pilih'}</span>
+    </div>`).join('');
+}
+
+function pilihWaktuLiga(btn, sek){
+  if(myVote === sek) return;
+
+  if(myVote !== null) ligaVotes[myVote] = Math.max(0, ligaVotes[myVote]-1);
+  myVote = sek;
+  ligaVotes[sek]++;
+
+  const me = ligaPeserta.find(p=>p.isMe);
+  if(me) me.voted = true;
+
+  renderLwGrid();
+  updateVoteUI();
+  cekApakahSemuaSudahVote();
+}
+
+function updateVoteUI(){
+  const total3 = ligaVotes[3], total4 = ligaVotes[4], total5 = ligaVotes[5];
+  document.getElementById('vote3').textContent = total3 + ' suara';
+  document.getElementById('vote4').textContent = total4 + ' suara';
+  document.getElementById('vote5').textContent = total5 + ' suara';
+
+  // Highlight tombol yg dipilih user
+  document.querySelectorAll('.lw-vote-btn').forEach(b=>{
+    b.classList.toggle('selected', parseInt(b.dataset.sek) === myVote);
+  });
+}
+
+function resetVoteUI(){
+  document.getElementById('vote3').textContent = '0 suara';
+  document.getElementById('vote4').textContent = '0 suara';
+  document.getElementById('vote5').textContent = '0 suara';
+  document.querySelectorAll('.lw-vote-btn').forEach(b=>{
+    b.classList.remove('selected');
+    const sek = parseInt(b.dataset.sek);
+    b.onclick = ()=> pilihWaktuLiga(b, sek); // pasang ulang handler
+  });
+  document.getElementById('lwWaitingLbl').textContent = 'Menunggu semua peserta memilih…';
+}
+
+function cekApakahSemuaSudahVote(){
+  const semuaSudah = ligaPeserta.every(p=> p.voted);
+  if(semuaSudah){
+    let maxVote = -1, pemenang = 3;
+    [3,4,5].forEach(sek=>{
+      if(ligaVotes[sek] > maxVote){ maxVote = ligaVotes[sek]; pemenang = sek; }
+    });
+    document.querySelectorAll('.lw-vote-btn').forEach(b=> b.onclick = null);
+    document.getElementById('lwWaitingLbl').textContent =
+      `⚡ Waktu disepakati: ${pemenang} detik — Memulai…`;
+    setTimeout(()=> mulaiLiga(pemenang), 1200);
+  }
+}
+
+function mulaiLiga(waktu){
+  document.getElementById('ligaWaitPage').classList.remove('open','sub-open');
+  bukaSoalPage(currentLiga, waktu || 5);
+}
+
+function keluarLigaWait(){
+  document.getElementById('ligaWaitPage').classList.remove('open','sub-open');
+  document.querySelector('#header h1').textContent = 'Mimbar Bebas';
+}
+
+// ── Halaman Soal Pilihan Ganda (setelah klik Mulai) ──
+const SOAL_BANK = [
+  { q:'Manakah bentuk kata kerja yang benar untuk "makan" dalam bentuk sopan?', opts:{A:'taberu',B:'tabemasu',C:'tabeta',D:'tabenai'}, jawaban:'B' },
+  { q:'Apa arti dari kata "arigatou"?', opts:{A:'Selamat pagi',B:'Maaf',C:'Terima kasih',D:'Sampai jumpa'}, jawaban:'C' },
+  { q:'Partikel apa yang digunakan untuk menandai objek langsung?', opts:{A:'は',B:'を',C:'が',D:'に'}, jawaban:'B' },
+  { q:'"Watashi wa gakusei desu" artinya?', opts:{A:'Saya seorang guru',B:'Saya seorang siswa',C:'Dia seorang siswa',D:'Kami adalah siswa'}, jawaban:'B' },
+  { q:'Manakah yang termasuk angka "5" dalam bahasa Jepang?', opts:{A:'yon',B:'go',C:'roku',D:'san'}, jawaban:'B' },
+];
+let SOAL_WAKTU = 5; // diatur dari vote
+
+let soalState = { list:[], idx:0, benar:0, peserta:[], mulaiSoal:0 };
+let soalTimerInterval = null;
+let prevRanks = {}; // nama → rank sebelum soal ini
+let riTimer = null;
+
+function bukaSoalPage(namaLiga, waktu){
+  SOAL_WAKTU = waktu || 5;
+  // Peserta dengan skor awal 0
+  const peserta = dummyRoomUsers(Math.floor(Math.random()*5)).map(u=>({
+    ...u, sudahJawab:false, skor:0, jawabDetik:[]
+  }));
+  // Tambah user sendiri
+  peserta.unshift({name:'Kamu', color:'#58a6ff', online:true,
+    sudahJawab:false, skor:0, jawabDetik:[], isMe:true});
+  soalState = { list: SOAL_BANK, idx: 0, benar: 0, peserta };
+  // Inisialisasi rank awal (semua skor 0, urutan = urutan array)
+  prevRanks = {};
+  peserta.forEach((u,i)=>{ prevRanks[u.name] = i; });
+  ligaSedangBerlangsung = true;
+  tampilkanSoal();
+  document.getElementById('soalPage').classList.add('open');
+  document.querySelector('#header h1').textContent = namaLiga || 'La Liga';
+}
+
+function renderPesertaStrip(){
+  const strip = document.getElementById('soalPesertaStrip');
+  strip.innerHTML = soalState.peserta.map(u=>`
+    <div class="soal-peserta ${u.sudahJawab?'terjawab':''}">
+      <div class="soal-peserta-ava" style="border-color:${u.color}">${u.isMe?'🙂':'👤'}</div>
+      <span class="soal-peserta-name">${u.name}</span>
+    </div>`).join('');
+}
+
+function tampilkanSoal(){
+  const { list, idx } = soalState;
+  const soal = list[idx];
+  soalState.mulaiSoal = Date.now();
+  document.getElementById('soalProgress').textContent = `SOAL ${idx+1} / ${list.length}`;
+  document.getElementById('soalQuestion').textContent = soal.q;
+  document.getElementById('soalOptsVert').innerHTML = ['A','B','C','D'].map(opt=>`
+    <button class="soal-opt" data-opt="${opt}" onclick="pilihJawaban(this,'${opt}')">${opt}. ${soal.opts[opt]}</button>`).join('');
+  // reset status jawaban peserta tiap soal baru
+  soalState.peserta.forEach(u=> u.sudahJawab = false);
+  renderPesertaStrip();
+  simulasiPesertaMenjawab();
+  mulaiTimerSoal();
+}
+
+function simulasiPesertaMenjawab(){
+  soalState.peserta.forEach(u=>{
+    if(!u.online || u.isMe) return;
+    const detik = 0.4 + Math.random()*(SOAL_WAKTU - 0.5);
+    setTimeout(()=>{
+      if(soalState.peserta.indexOf(u) < 0) return;
+      u.sudahJawab = true;
+      u.jawabDetik.push(detik);
+      // Skor NPC: cepat (≤1dtk) +200, lambat +100
+      const tambahNpc = detik <= 1 ? 200 : 100;
+      u.skor += tambahNpc;
+      renderPesertaStrip();
+      cekSemuaJawab();
+    }, detik * 1000);
+  });
+}
+
+function cekSemuaJawab(){
+  const semua = soalState.peserta.every(u=> u.sudahJawab);
+  if(semua){
+    clearInterval(soalTimerInterval);
+    // Tunjukkan jawaban benar sebentar lalu lanjut
+    const soal = soalState.list[soalState.idx];
+    document.querySelectorAll('.soal-opt').forEach(b=>{
+      b.onclick = null;
+      if(b.dataset.opt === soal.jawaban) b.classList.add('correct');
+    });
+    setTimeout(nextSoalOrScore, 700);
+  }
+}
+
+function mulaiTimerSoal(){
+  clearInterval(soalTimerInterval);
+  let sisa = SOAL_WAKTU;
+  const timerEl = document.getElementById('soalTimer');
+  timerEl.textContent = sisa;
+  timerEl.classList.remove('urgent');
+  soalTimerInterval = setInterval(()=>{
+    sisa--;
+    timerEl.textContent = sisa;
+    if(sisa <= 2) timerEl.classList.add('urgent');
+    if(sisa <= 0){
+      clearInterval(soalTimerInterval);
+      waktuHabis();
+    }
+  }, 1000);
+}
+
+function waktuHabis(){
+  const soal = soalState.list[soalState.idx];
+  // Yang belum jawab = tidak dapat poin
+  soalState.peserta.forEach(u=>{
+    if(!u.sudahJawab){ u.sudahJawab = true; u.jawabDetik.push(SOAL_WAKTU); }
+  });
+  renderPesertaStrip();
+  document.querySelectorAll('.soal-opt').forEach(b=>{
+    b.onclick = null;
+    if(b.dataset.opt === soal.jawaban) b.classList.add('correct');
+  });
+  setTimeout(nextSoalOrScore, 900);
+}
+
+function pilihJawaban(btn, opt){
+  clearInterval(soalTimerInterval);
+  const elapsed = (Date.now() - soalState.mulaiSoal) / 1000;
+  const soal = soalState.list[soalState.idx];
+  const me = soalState.peserta.find(p=>p.isMe);
+
+  document.querySelectorAll('.soal-opt').forEach(b=>b.onclick = null);
+
+  // Hitung persentase kecepatan (0%=lambat, 100%=cepat)
+  // elapsed 1 detik pertama = cepat, selebihnya lambat
+  const pctCepat = Math.max(0, Math.min(100, Math.round((1 - elapsed / SOAL_WAKTU) * 100)));
+  const isCepat = elapsed <= 1; // ≤1 detik = cepat
+
+  if(opt === soal.jawaban){
+    btn.classList.add('correct');
+    soalState.benar++;
+    // Benar cepat (+200), benar lambat (+100)
+    const tambah = isCepat ? 200 : 100;
+    if(me){
+      me.skor += tambah;
+      me.sudahJawab = true;
+      me.jawabDetik.push(elapsed);
+      tampilFeedbackSkor('+' + tambah, '#3fb950', pctCepat);
+    }
+  } else {
+    btn.classList.add('wrong');
+    document.querySelector(`.soal-opt[data-opt="${soal.jawaban}"]`).classList.add('correct');
+    // Salah cepat (-100), salah lambat (-200)
+    const kurang = isCepat ? 100 : 200;
+    if(me){
+      me.skor = Math.max(0, me.skor - kurang);
+      me.sudahJawab = true;
+      me.jawabDetik.push(elapsed);
+      tampilFeedbackSkor('-' + kurang, '#f85149', pctCepat);
+    }
+  }
+  // NPC yang belum jawab tetap jalan lalu cek
+  lanjutSoalBerikutnya();
+}
+
+function tampilFeedbackSkor(teks, warna, pctCepat){
+  // Hapus feedback lama kalau ada
+  const lama = document.getElementById('skorFeedback');
+  if(lama) lama.remove();
+
+  const el = document.createElement('div');
+  el.id = 'skorFeedback';
+  el.style.cssText = `
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    z-index:999;pointer-events:none;
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+    animation:skorPop .9s ease forwards;
+  `;
+  el.innerHTML = `
+    <div style="font-size:38px;font-weight:900;color:${warna};
+      font-family:'MS Gothic',monospace;letter-spacing:1px;
+      text-shadow:0 0 16px ${warna}88;">${teks}</div>
+    <div style="font-size:12px;color:#8b949e;letter-spacing:1.5px;
+      font-family:'MS Gothic',monospace;">
+      KECEPATAN <span style="color:${warna};font-weight:700;">${pctCepat}%</span>
+    </div>
+  `;
+
+  // Tambah keyframe kalau belum ada
+  if(!document.getElementById('skorPopStyle')){
+    const s = document.createElement('style');
+    s.id = 'skorPopStyle';
+    s.textContent = `@keyframes skorPop{
+      0%{opacity:0;transform:translate(-50%,-60%) scale(.7);}
+      20%{opacity:1;transform:translate(-50%,-50%) scale(1.15);}
+      60%{opacity:1;transform:translate(-50%,-50%) scale(1);}
+      100%{opacity:0;transform:translate(-50%,-42%) scale(.95);}
+    }`;
+    document.head.appendChild(s);
+  }
+
+  document.body.appendChild(el);
+  setTimeout(()=>{ if(el.parentNode) el.remove(); }, 900);
+}
+
+function lanjutSoalBerikutnya(){
+  setTimeout(nextSoalOrScore, 900);
+}
+
+function nextSoalOrScore(){
+  // Simpan rank SEBELUM soal ini (sudah ada di prevRanks dari soal sebelumnya)
+  const rankBefore = {...prevRanks};
+
+  // Update prevRanks ke rank BARU (setelah skor soal ini masuk)
+  [...soalState.peserta].sort((a,b)=>b.skor-a.skor).forEach((u,i)=>{
+    prevRanks[u.name] = i;
+  });
+
+  const isLast = soalState.idx >= soalState.list.length - 1;
+  if(isLast){
+    tampilkanInterstitial(rankBefore, ()=>{
+      tutupSoalPage();
+      tampilkanScorePage();
+    });
+  } else {
+    tampilkanInterstitial(rankBefore, ()=>{
+      soalState.idx++;
+      tampilkanSoal();
+    });
+  }
+}
+
+function tampilkanInterstitial(rankBefore, onDone){
+  clearTimeout(riTimer);
+  const sorted = [...soalState.peserta].sort((a,b)=>b.skor-a.skor);
+  const rankIco = ['🥇','🥈','🥉'];
+  const CARD_H = 62;
+  const DURASI = 2800;
+  const ANIM_DELAY = 300; // jeda sebelum animasi geser
+
+  document.getElementById('riSoalLabel').textContent =
+    `SETELAH SOAL ${soalState.idx+1} / ${soalState.list.length}`;
+
+  const body = document.getElementById('riBody');
+  body.innerHTML = '';
+
+  // Render semua card di posisi LAMA (oldRank), tanpa transition dulu
+  sorted.forEach((u, newRank)=>{
+    const oldRank = (rankBefore[u.name] !== undefined) ? rankBefore[u.name] : newRank;
+    const delta = oldRank - newRank; // positif=naik, negatif=turun, 0=sama
+
+    const card = document.createElement('div');
+    card.className = `ri-card${newRank < 3 ? ' rank-'+(newRank+1) : ''}`;
+    card.dataset.name = u.name;
+    card.style.top = (oldRank * CARD_H + 8) + 'px';
+    card.style.transition = 'none'; // mulai tanpa transition
+    card.innerHTML = `
+      <div class="ri-rank">${newRank < 3 ? rankIco[newRank] : newRank+1}</div>
+      <div class="ri-ava" style="border-color:${u.color}">${u.isMe?'🙂':'👤'}</div>
+      <div class="ri-name" style="color:${u.color}">${u.name}</div>
+      <div class="ri-pts">${u.skor}</div>
+      <div class="ri-delta ${delta>0?'up':delta<0?'down':'same'}">
+        ${delta>0?'▲'+delta : delta<0?'▼'+Math.abs(delta) : '—'}
+      </div>`;
+    body.appendChild(card);
+  });
+
+  const pg = document.getElementById('rankInter');
+  pg.classList.add('open');
+
+  // Setelah ANIM_DELAY ms: aktifkan transition lalu geser ke posisi BARU
+  riTimer = setTimeout(()=>{
+    sorted.forEach((u, newRank)=>{
+      const card = body.querySelector(`[data-name="${CSS.escape(u.name)}"]`);
+      if(!card) return;
+      card.style.transition = 'top .65s cubic-bezier(.4,0,.2,1)';
+      card.style.top = (newRank * CARD_H + 8) + 'px';
+    });
+  }, ANIM_DELAY);
+
+  // Progress bar mulai setelah page terbuka
+  const fill = document.getElementById('riNextFill');
+  fill.style.transition = 'none';
+  fill.style.width = '0%';
+  requestAnimationFrame(()=> requestAnimationFrame(()=>{
+    fill.style.transition = `width ${DURASI}ms linear`;
+    fill.style.width = '100%';
+  }));
+
+  riTimer = setTimeout(()=>{
+    pg.classList.remove('open');
+    onDone();
+  }, DURASI);
+}
+
+function tutupSoalPage(){
+  clearInterval(soalTimerInterval);
+  document.getElementById('soalPage').classList.remove('open','sub-open');
+}
+
+function tampilkanScorePage(){
+  // Urutkan peserta dari skor tertinggi
+  const sorted = [...soalState.peserta].sort((a,b)=> b.skor - a.skor);
+  const maxSkor = sorted[0]?.skor || 1;
+  const rankIco = ['🥇','🥈','🥉'];
+  const pg = document.getElementById('scorePage');
+
+  document.getElementById('scoreList').innerHTML = sorted.map((u,i)=>`
+    <div class="score-card ${i<3?'rank-'+(i+1):''}" style="animation-delay:${i*80}ms">
+      <div class="score-rank">${i < 3 ? rankIco[i] : (i+1)}</div>
+      <div class="score-ava" style="border-color:${u.color}">${u.isMe?'🙂':'👤'}</div>
+      <div class="score-info">
+        <div class="score-name" style="color:${u.color}">${u.name}</div>
+        <div class="score-detail">
+          ${u.jawabDetik.length ? 'rata-rata ' + (u.jawabDetik.reduce((a,b)=>a+b,0)/u.jawabDetik.length).toFixed(1) + ' dtk' : 'tidak menjawab'}
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div class="score-pts">${u.skor}</div>
+        <div class="score-pts-lbl">POIN</div>
+      </div>
+      <div class="score-bar-bg"></div>
+      <div class="score-bar-fill" style="width:${Math.round(u.skor/maxSkor*100)}%"></div>
+    </div>`).join('');
+
+  pg.classList.add('open');
+  if(document.getElementById('subBar').classList.contains('open'))
+    pg.classList.add('sub-open');
+  document.querySelector('#header h1').textContent = currentLiga || 'Hasil';
+
+  // Simpan hasil liga ke database: rank 1/2/3 = menang di tier emas/perak/perunggu,
+  // rank 4+ = kalah di tier emas (gagal meraih juara 1).
+  const myRank = sorted.findIndex(u=>u.isMe);
+  if(myRank !== -1 && currentLiga){
+    const tierByRank = ['emas','perak','perunggu'];
+    const tier = myRank < 3 ? tierByRank[myRank] : 'emas';
+    const menang = myRank < 3;
+    simpanHasilLiga(currentLiga, tier, menang);
+  }
+}
+
+// Kirim hasil sesi liga (menang/kalah) ke server supaya trofi di My Personality
+// dan halaman detail La Liga ikut ter-update.
+async function simpanHasilLiga(liga, tier, menang){
+  try {
+    await fetch('/api/liga/hasil', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({liga, tier, menang})
+    });
+    // Refresh cache stats liga & profil supaya panel My Personality akurat
+    await Promise.all([muatLigaStats(), muatMyProfile()]);
+  } catch(e) {}
+}
+
+function tutupScorePage(){
+  ligaSedangBerlangsung = false;
+  document.getElementById('scorePage').classList.remove('open','sub-open');
+  // Kembali ke halaman tunggu La Liga (buka ulang dengan liga yang sama)
+  bukaLigaWait(currentLiga);
+}
+
+async function bukaTrofiDariScore(){
+  ligaSedangBerlangsung = false;
+  document.getElementById('scorePage').classList.remove('open','sub-open');
+  // Pastikan data trofi sudah yang terbaru (hasil liga barusan sudah tersimpan)
+  await muatLigaStats();
+  // Buka trofi page dari dalam (tanpa sub-bar)
+  document.getElementById('tpTitle').textContent = currentLiga || 'Trofi';
+  const emas = statLigaTier(currentLiga, 'emas');
+  const perak = statLigaTier(currentLiga, 'perak');
+  const perunggu = statLigaTier(currentLiga, 'perunggu');
+  document.getElementById('tpBody').innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;padding:4px 2px 10px;cursor:pointer;"
+      onclick="tutupTrofiKeLiga()">
+      <span style="color:#58a6ff;font-size:12px;">← Kembali ke La Liga</span>
+    </div>
+    <div class="tp-card">
+      <div class="tp-card-head"><span class="tp-card-ico">🥇</span>
+        <span class="tp-card-name" style="color:#f7c948;">Trofi Emas</span></div>
+      <div class="tp-stat-row">
+        <div class="tp-stat win"><span class="tp-stat-num">${emas.win}</span><span class="tp-stat-lbl">MENANG</span></div>
+        <div class="tp-stat lose"><span class="tp-stat-num">${emas.lose}</span><span class="tp-stat-lbl">KALAH</span></div>
+      </div>
+    </div>
+    <div class="tp-card">
+      <div class="tp-card-head"><span class="tp-card-ico">🥈</span>
+        <span class="tp-card-name" style="color:#c9d1d9;">Trofi Perak</span></div>
+      <div class="tp-stat-row">
+        <div class="tp-stat win"><span class="tp-stat-num">${perak.win}</span><span class="tp-stat-lbl">MENANG</span></div>
+        <div class="tp-stat lose"><span class="tp-stat-num">${perak.lose}</span><span class="tp-stat-lbl">KALAH</span></div>
+      </div>
+    </div>
+    <div class="tp-card">
+      <div class="tp-card-head"><span class="tp-card-ico">🥉</span>
+        <span class="tp-card-name" style="color:#cd7f32;">Trofi Perunggu</span></div>
+      <div class="tp-stat-row">
+        <div class="tp-stat win"><span class="tp-stat-num">${perunggu.win}</span><span class="tp-stat-lbl">MENANG</span></div>
+        <div class="tp-stat lose"><span class="tp-stat-num">${perunggu.lose}</span><span class="tp-stat-lbl">KALAH</span></div>
+      </div>
+    </div>`;
+  const pg = document.getElementById('trofiPage');
+  pg.classList.add('open');
+  pg.classList.remove('sub-open');
+  document.querySelector('#header h1').textContent = currentLiga || 'Trofi';
+}
+
+function tutupTrofiKeLiga(){
+  document.getElementById('trofiPage').classList.remove('open','sub-open');
+  bukaLigaWait(currentLiga);
+}
+
+function bukaTrofiPage(tier){
+  const labelMap = {emas:'Trofi Emas 🥇', perak:'Trofi Perak 🥈', perunggu:'Trofi Perunggu 🥉'};
+  const icoMap   = {emas:'🥇', perak:'🥈', perunggu:'🥉'};
+  document.getElementById('tpTitle').textContent = labelMap[tier] || 'Trofi';
+  const list = daftarTrofiTier(tier);
+  document.getElementById('tpBody').innerHTML = list.length ? list.map(l=>`
+    <div class="tp-card" style="cursor:pointer;" onclick="bukaDetailLiga('${l.nama}','${tier}')">
+      <div class="tp-card-head">
+        <span class="tp-card-ico">${l.ico}</span>
+        <span class="tp-card-name">${l.nama}</span>
+        <span style="margin-left:auto;font-size:18px;">${icoMap[tier]}</span>
+      </div>
+      <div class="tp-stat-row">
+        <div class="tp-stat win">
+          <span class="tp-stat-num">${l.win}</span>
+          <span class="tp-stat-lbl">MENANG</span>
+        </div>
+        <div class="tp-stat lose">
+          <span class="tp-stat-num">${l.lose}</span>
+          <span class="tp-stat-lbl">KALAH</span>
+        </div>
+      </div>
+    </div>`).join('')
+  : `<div style="text-align:center;color:#484f58;font-size:12px;padding:24px 0;">Belum ada trofi di tingkat ini.</div>`;
+  const pg = document.getElementById('trofiPage');
+  pg.classList.add('open');
+  if(document.getElementById('subBar').classList.contains('open'))
+    pg.classList.add('sub-open');
+  document.getElementById('lencanaPage').classList.remove('open');
+}
+
+function bukaDetailLiga(namaLiga, tierAktif){
+  const tiers = [
+    {key:'emas',     ico:'🥇', label:'Trofi Emas',     color:'#f7c948'},
+    {key:'perak',    ico:'🥈', label:'Trofi Perak',    color:'#c9d1d9'},
+    {key:'perunggu', ico:'🥉', label:'Trofi Perunggu', color:'#cd7f32'},
+  ];
+  document.getElementById('tpTitle').textContent = namaLiga;
+  document.getElementById('tpBody').innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;padding:4px 2px 10px;cursor:pointer;"
+      onclick="bukaTrofiPage('${tierAktif}')">
+      <span style="color:#58a6ff;font-size:12px;">← Kembali</span>
+    </div>
+    ${tiers.map(t=>{
+      const st = statLigaTier(namaLiga, t.key);
+      return `
+    <div class="tp-card" style="border-color:${t.key===tierAktif?t.color:'#21262d'};">
+      <div class="tp-card-head">
+        <span class="tp-card-ico">${t.ico}</span>
+        <span class="tp-card-name" style="color:${t.color};">${t.label}</span>
+      </div>
+      <div class="tp-stat-row">
+        <div class="tp-stat win"><span class="tp-stat-num">${st.win}</span><span class="tp-stat-lbl">MENANG</span></div>
+        <div class="tp-stat lose"><span class="tp-stat-num">${st.lose}</span><span class="tp-stat-lbl">KALAH</span></div>
+      </div>
+    </div>`;
+    }).join('')}`;
+}
+
+function tutupTrofiPage(){
+  document.getElementById('trofiPage').classList.remove('open','sub-open');
+}
+
+function tutupSlideKanan(){
+  tutupTrofiPage();
+  closeLencana();
+}
+
+function renderFeatured(){
+  renderLencanaBody();
+}
+
+function flipLencana(){
+  const card = document.getElementById('flipCard');
+  if(card) card.classList.add('flipping');
+  setTimeout(()=>{
+    featuredLencana = (featuredLencana + 1) % LENCANA.length;
+    renderLencanaBody();
+  }, 180);
+}
+
+function setFeaturedLencana(idx){
+  const card = document.getElementById('flipCard');
+  if(card) card.classList.add('flipping');
+  setTimeout(()=>{
+    featuredLencana = idx;
+    renderLencanaBody();
+  }, 180);
+}
+
+function renderLencanaBody(){
+  const l = LENCANA[featuredLencana];
+  document.getElementById('lpBody').innerHTML = `
+    <div id="flipCard" class="flip-card" style="border-color:${l.color}" onclick="flipLencana()">${l.ico}</div>
+    <div class="flip-hint">ketuk untuk flip</div>
+    <div class="lp-name" id="lpNameTxt">${l.name}</div>
+    <div class="lp-desc" id="lpDescTxt">${l.desc}</div>
+    <div class="lp-divider"></div>
+    <div class="lp-label">SEMUA LENCANA</div>
+    <div class="badge-row" style="justify-content:center;">
+      ${LENCANA.map((b,i)=>`
+        <div class="badge-sm ${i===featuredLencana?'active':''}"
+          onclick="setFeaturedLencana(${i})"
+          title="${b.name}"
+          style="${i===featuredLencana?'border-color:'+b.color+';background:#1c2128;':''}">${b.ico}</div>`).join('')}
+    </div>`;
+}
+
+function openLencana(startIdx){
+  featuredLencana = (startIdx !== undefined) ? startIdx : 0;
+  const pg = document.getElementById('lencanaPage');
+  const cw = document.getElementById('chatWrap');
+  if(cw.classList.contains('sub-open')) pg.classList.add('sub-open');
+  else pg.classList.remove('sub-open');
+  renderLencanaBody();
+  pg.classList.add('open');
+  document.getElementById('trofiPage').classList.remove('open','sub-open');
+}
+
+function closeLencana(){
+  document.getElementById('lencanaPage').classList.remove('open');
+}
+
+/* ═══ USERS POOL ═══ */
+// ── Data simulasi khusus fitur Liga & Room Tunggu (Latihan/Materi) ──
+// CATATAN: ini TIDAK dipakai di Cafetaria lagi (cafetaria sudah pakai
+// user asli lewat WebSocket). Dipertahankan hanya untuk fitur voting/quiz
+// La Liga dan preview "Room Tunggu" pada Latihan & Materi yang memang
+// didesain sebagai simulasi, bukan room sungguhan.
+const DUMMY_PESERTA_POOL = [
+  {name:'Budi',   color:'#58a6ff', online:true},
+  {name:'Sari',   color:'#d2a8ff', online:true},
+  {name:'Eko',    color:'#79c0ff', online:false},
+  {name:'Dewi',   color:'#ffa657', online:true},
+  {name:'Reza',   color:'#56d364', online:false},
+  {name:'Nisa',   color:'#f78166', online:true},
+  {name:'Hendra', color:'#ffa657', online:true},
+  {name:'Putri',  color:'#d2a8ff', online:false},
+  {name:'Yoga',   color:'#58a6ff', online:true},
+  {name:'Laila',  color:'#79c0ff', online:false},
+];
+function dummyRoomUsers(idx){
+  const users=[];
+  for(let i=0;i<5;i++) users.push(DUMMY_PESERTA_POOL[(idx*2+i)%DUMMY_PESERTA_POOL.length]);
+  return users;
+}
+
+// ── CAFETARIA: room nyata via WebSocket signaling (port 8083) ──
+// Tidak ada lagi data dummy/NPC. Semua anggota room adalah username asli
+// yang benar-benar terhubung lewat koneksi WebSocket.
+const CAFETARIA_ROOM_MAX = 5;
+const CAFETARIA_ROOMS = ['Room 1','Room 2','Room 3']; // nama default (fallback)
+let cafetariaRoomNames = ['Room 1','Room 2','Room 3']; // nama aktif (bisa diubah, dari server)
+let cafetariaPreview = {}; // {roomId: {count, users}} — hasil intip cepat (tanpa join)
+
+function cafetariaRoomId(idx){ return 'cafetaria-'+(idx+1); }
+
+// Klik pada item Room N = langsung MASUK ke room (gabungCafetariaRoom).
+// Tahan lama (long-press) pada NAMA room dipakai untuk ganti nama room,
+// lihat pasangLongPressRoomItems() -> mulaiEditNamaRoom().
+function toggleRoom(el, roomIdx){
+  gabungCafetariaRoom(roomIdx);
+}
+
+// Ambil nama-nama room terbaru dari server saat menu Cafetaria dibuka.
+async function muatNamaRoomCafetaria(){
+  try {
+    const res = await fetch(`//${location.hostname}:8083/api/room/names`);
+    if(!res.ok) throw new Error('gagal');
+    const data = await res.json();
+    [0,1,2].forEach(i=>{
+      const key = cafetariaRoomId(i);
+      if(data[key]) cafetariaRoomNames[i] = data[key];
+    });
+    [0,1,2].forEach(i=>{
+      const el = document.querySelector(`.si-room-name[data-cafetaria-name-idx="${i}"]`);
+      if(el && !el.classList.contains('editing')) el.textContent = cafetariaRoomNames[i];
+    });
+  } catch(e){ /* pakai nama default kalau gagal */ }
+}
+
+// Long-press pada nama room -> ubah jadi input inline untuk edit nama.
+function mulaiEditNamaRoom(el, idx){
+  if(el.classList.contains('editing')) return;
+  const namaLama = cafetariaRoomNames[idx] || CAFETARIA_ROOMS[idx];
+  el.classList.add('editing');
+  el.contentEditable = 'true';
+  el.textContent = namaLama;
+  el.focus();
+  document.execCommand && document.execCommand('selectAll', false, null);
+
+  // Cegah klik di dalam teks (untuk posisi kursor / seleksi) ikut bubble
+  // ke .sub-item parent dan memicu join room secara tidak sengaja.
+  const onClickInside = (e)=> e.stopPropagation();
+  el.addEventListener('click', onClickInside);
+
+  const selesai = (simpan)=>{
+    el.classList.remove('editing');
+    el.contentEditable = 'false';
+    el.removeEventListener('blur', onBlur);
+    el.removeEventListener('keydown', onKeydown);
+    el.removeEventListener('click', onClickInside);
+    const namaBaru = el.textContent.trim();
+    if(simpan && namaBaru && namaBaru !== namaLama){
+      simpanNamaRoom(idx, namaBaru);
+    } else {
+      el.textContent = namaLama; // batal -> kembalikan nama lama
+    }
+  };
+  const onBlur = ()=> selesai(true);
+  const onKeydown = (e)=>{
+    if(e.key === 'Enter'){ e.preventDefault(); el.blur(); }
+    if(e.key === 'Escape'){ e.preventDefault(); selesai(false); }
+  };
+  el.addEventListener('blur', onBlur);
+  el.addEventListener('keydown', onKeydown);
+}
+
+async function simpanNamaRoom(idx, namaBaru){
+  const roomId = cafetariaRoomId(idx);
+  try {
+    const res = await fetch(`//${location.hostname}:8083/api/room/rename`, {
+      method:'POST',
+      credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({room_id: roomId, name: namaBaru})
+    });
+    if(!res.ok){
+      const msg = await res.text();
+      alert('Gagal ganti nama room: '+msg);
+      // kembalikan tampilan ke nama lama
+      const el = document.querySelector(`.si-room-name[data-cafetaria-name-idx="${idx}"]`);
+      if(el) el.textContent = cafetariaRoomNames[idx];
+      return;
+    }
+    cafetariaRoomNames[idx] = namaBaru;
+    // Kalau sedang di dalam room ini, judul header room ikut diupdate
+    if(cafetariaWS && cafetariaJoinedIdx === idx){
+      document.getElementById('roomPageTitle').textContent = namaBaru;
+    }
+  } catch(e){
+    alert('Gagal ganti nama room (koneksi bermasalah)');
+  }
+}
+
+// Info ringkas jumlah orang di tiap room cafetaria, ditampilkan di
+// bawah nama room (mis. "1/5 orang" atau "Sepi guys" kalau kosong).
+// Dipanggil saat menu Cafetaria dibuka dan disegarkan berkala.
+let cafetariaStatusTimer = null;
+
+async function muatCafetariaStatus(){
+  if(activeMenu !== 'cafetaria') return;
+  const rows = document.querySelectorAll('#subContent .sub-item[data-cafetaria-idx]');
+  if(!rows.length) return;
+  for(const el of rows){
+    const idx = Number(el.dataset.cafetariaIdx);
+    const info = await intipCafetariaRoom(idx);
+    const statusEl = el.querySelector('.si-room-status');
+    if(!statusEl) continue;
+    if(!info || info.users.length === 0){
+      statusEl.textContent = 'Sepi guys';
+      statusEl.classList.add('empty');
+    } else {
+      statusEl.textContent = `${info.users.length}/${CAFETARIA_ROOM_MAX} orang`;
+      statusEl.classList.remove('empty');
+    }
+  }
+}
+
+function mulaiCafetariaStatusPolling(){
+  clearInterval(cafetariaStatusTimer);
+  muatNamaRoomCafetaria();
+  muatCafetariaStatus();
+  cafetariaStatusTimer = setInterval(muatCafetariaStatus, 5000);
+}
+
+function hentikanCafetariaStatusPolling(){
+  clearInterval(cafetariaStatusTimer);
+  cafetariaStatusTimer = null;
+}
+
+// Intip cepat isi room tanpa benar-benar konek (pakai REST /api/rooms di 8083).
+async function intipCafetariaRoom(roomIdx){
+  const roomId = cafetariaRoomId(roomIdx);
+  try {
+    const res = await fetch(`//${location.hostname}:8083/api/rooms`);
+    if(!res.ok) throw new Error('gagal');
+    const list = await res.json();
+    const found = list.find(r=>r.room_id===roomId);
+    const info = { count: found ? found.users_online : 0, users: (found && found.usernames) || [] };
+    cafetariaPreview[roomId] = info;
+    return info;
+  } catch(e){
+    return cafetariaPreview[roomId] || { count:0, users:[] };
+  }
+}
+
+// ── Expand sub-sub-bab untuk Latihan & Materi (klik kiri pada nama item) ──
+function subBabList(parentLabel){
+  return ['Sub-bab 1','Sub-bab 2','Sub-bab 3'].map(s=>`${parentLabel} — ${s}`);
+}
+
+function toggleSubBab(mainEl, idx){
+  const row    = mainEl.closest('.si-row');
+  const expand = row ? row.nextElementSibling : null;
+  if(!expand || !expand.classList.contains('room-expand')) return;
+  const isOpen = expand.classList.contains('open');
+  // tutup semua expand lain
+  document.querySelectorAll('#subContent .room-expand').forEach(e=>{
+    e.classList.remove('open'); e.innerHTML='';
+  });
+  document.querySelectorAll('#subContent .si-row').forEach(r=>r.classList.remove('expanded'));
+  if(isOpen) return;
+  const label = row.dataset.roomLabel;
+  const ico   = mainEl.querySelector('.si-ico') ? mainEl.querySelector('.si-ico').textContent : '📄';
+  const subs  = subBabList(label);
+  expand.innerHTML = subs.map(s=>`
+    <div class="ssb-item" onclick="bukaKontenPage('${s}','${ico}','${label}')">
+      <span class="ssb-dot"></span>${s}</div>`).join('');
+  expand.classList.add('open');
+  row.classList.add('expanded');
+  // Rotasi arrow
+  const arrow = mainEl.querySelector('.si-arrow');
+  if(arrow) arrow.style.transform = 'rotate(90deg)';
+  setTimeout(()=>{ expand.scrollIntoView({block:'nearest',behavior:'smooth'}); }, 50);
+}
+
+// ── Klik zona kanan: 1x = preview (itemPage ringkas), 2x = halaman penuh ──
+function handleRightZone(e, zoneEl, label, ico, kategori){
+  e.stopPropagation();
+  const row = zoneEl.closest('.si-row');
+  if(row.dataset.clickTimer){
+    // ini klik kedua dalam jendela waktu -> double click -> full page
+    clearTimeout(Number(row.dataset.clickTimer));
+    delete row.dataset.clickTimer;
+    bukaItemFull(label, ico, kategori);
+  } else {
+    row.dataset.clickTimer = setTimeout(()=>{
+      delete row.dataset.clickTimer;
+      bukaItemPage(label, ico, kategori, row.querySelector('.si-main'));
+    }, 300);
+  }
+}
+
+/* ═══ PROFIL "MY PERSONALITY" — diisi dari /api/me/profile ═══ */
+let MY_PROFILE = null; // hasil fetch, null = belum dimuat
+
+async function muatMyProfile(){
+  try {
+    const res = await fetch('/api/me/profile');
+    if (!res.ok) throw new Error('gagal');
+    MY_PROFILE = await res.json();
+  } catch(e) {
+    MY_PROFILE = { username: ME, kta:'', status:'', lencana:[], trofi:[], tanggal_bergabung:'', has_member:false };
+  }
+  // Kalau panel "My Personality" sedang terbuka, render ulang dengan data baru
+  if (activeMenu === 'room') {
+    document.getElementById('subContent').innerHTML = MENUS.room.html();
+    pasangLongPressRoomItems();
+  }
+}
+
+function formatTanggalGabung(tgl){
+  if(!tgl) return '';
+  const BLN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  const d = new Date(tgl + 'T00:00:00');
+  if (isNaN(d.getTime())) return '';
+  return `${String(d.getDate()).padStart(2,'0')} ${BLN[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+function myProfileStatusColor(status){
+  if(status === 'Kohai')      return {c:'#56d364', bg:'#0d1a0d'};
+  if(status === 'Senpai')     return {c:'#58a6ff', bg:'#1f3a5c'};
+  if(status === 'Dai Senpai') return {c:'#ffa657', bg:'#1a1200'};
+  return {c:'#8b949e', bg:'#161b22'}; // status kosong/belum ada data
+}
+
+const MENUS = {
+  room: {
+    title: '— My Personality —',
+    html: ()=>{
+      const p = MY_PROFILE || { username: ME, kta:'', status:'', lencana:[], trofi_count:{emas:0,perak:0,perunggu:0}, tanggal_bergabung:'', has_member:false };
+      const kta = p.kta || '— Belum ada —';
+      const statusTxt = p.status || 'Belum ada status';
+      const sc = myProfileStatusColor(p.status);
+      const lencanaList = Array.isArray(p.lencana) ? p.lencana : [];
+      const tc = p.trofi_count || {emas:0,perak:0,perunggu:0};
+      const emas     = tc.emas || 0;
+      const perak    = tc.perak || 0;
+      const perunggu = tc.perunggu || 0;
+      const tglGabung = formatTanggalGabung(p.tanggal_bergabung) || '— Belum ada —';
+
+      return `
+      <div style="display:flex;flex-direction:column;align-items:center;
+        padding:12px 10px 12px;gap:6px;text-align:center;">
+        <div style="width:60px;height:60px;border-radius:50%;background:#21262d;
+          border:2px solid #30363d;display:flex;align-items:center;
+          justify-content:center;font-size:30px;">👤</div>
+        <div style="font-size:13px;font-weight:700;color:#e6edf3;letter-spacing:.5px;">${escHtml(p.username || ME)}</div>
+        <div style="font-size:11px;color:#8b949e;letter-spacing:1px;">${escHtml(kta)}</div>
+        <div style="font-size:11px;color:${sc.c};background:${sc.bg};
+          padding:2px 10px;border-radius:10px;
+          cursor:pointer;" onclick="bukaStatusPage()">${escHtml(statusTxt)}</div>
+        <div style="display:flex;gap:6px;justify-content:center;margin-top:4px;min-height:24px;">
+          ${lencanaList.length ? lencanaList.map(nama=>{
+            const idx = LENCANA.findIndex(l=>l.name===nama);
+            const def = idx !== -1 ? LENCANA[idx] : null;
+            return def
+              ? `<div class="lbadge" onclick="openLencana(${idx})" title="${def.name}" style="border-color:${def.color};">${def.ico}</div>`
+              : `<div class="lbadge" title="${escHtml(nama)}" style="border-color:#30363d;">▫</div>`;
+          }).join('') : ''}
+        </div>
+        <div style="width:80%;height:1px;background:#21262d;margin:8px 0;"></div>
+        <div id="bioWrap" style="width:100%;padding:0 8px;">
+          <div id="bioText" onclick="editBio()"
+            style="font-size:12px;color:#8b949e;text-align:center;cursor:pointer;
+            min-height:32px;line-height:1.6;word-break:break-word;"
+            title="Klik untuk sunting bio">Tulis bio kamu di sini...</div>
+          <textarea id="bioInput" rows="3"
+            style="display:none;width:100%;background:#161b22;border:1px solid #30363d;
+            border-radius:8px;color:#e6edf3;font-size:12px;padding:6px 8px;
+            text-align:center;resize:none;outline:none;font-family:inherit;"
+            placeholder="Tulis bio..."
+            onblur="simpanBio()"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();simpanBio();}"></textarea>
+        </div>
+        <div style="width:80%;height:1px;background:#21262d;margin:8px 0;"></div>
+        <div class="trofi-wrap">
+          <div class="trofi-row emas" onclick="bukaTrofiPage('emas')">
+            <span class="trofi-ico">🥇</span>
+            <span class="trofi-label">Trofi Emas</span>
+            <span class="trofi-count">${emas}</span>
+            <span class="trofi-chev">▶</span>
+          </div>
+          <div class="trofi-row perak" onclick="bukaTrofiPage('perak')">
+            <span class="trofi-ico">🥈</span>
+            <span class="trofi-label">Trofi Perak</span>
+            <span class="trofi-count">${perak}</span>
+            <span class="trofi-chev">▶</span>
+          </div>
+          <div class="trofi-row perunggu" onclick="bukaTrofiPage('perunggu')">
+            <span class="trofi-ico">🥉</span>
+            <span class="trofi-label">Trofi Perunggu</span>
+            <span class="trofi-count">${perunggu}</span>
+            <span class="trofi-chev">▶</span>
+          </div>
+        </div>
+        <div style="width:80%;height:1px;background:#21262d;margin:8px 0 2px;"></div>
+        <div style="font-size:9px;color:#484f58;letter-spacing:1px;
+          font-family:'MS Gothic','Gothic',monospace;">Bergabung sejak</div>
+        <div style="font-size:11px;color:#8b949e;letter-spacing:1px;
+          font-family:'MS Gothic','Gothic',monospace;margin-top:-3px;">${escHtml(tglGabung)}</div>
+      </div>`;
+    }
+  },
+  cafetaria: {
+    title: '— Cafetaria —',
+    html: ()=>[0,1,2].map(i=>`
+      <div class="sub-item" onclick="toggleRoom(this,${i})" data-cafetaria-idx="${i}">
+        <span class="si-ico">🍽</span>
+        <span class="si-room-name" data-cafetaria-name-idx="${i}">${escHtml(cafetariaRoomNames[i] || CAFETARIA_ROOMS[i])}</span>
+        <span class="si-room-status" data-cafetaria-status-idx="${i}">...</span>
+      </div>`).join('')
+  },
+  latihan: {
+    title: '— Latihan —',
+    html: ()=>['Modul 1','Modul 2','Modul 3','Ujian'].map((t,i)=>`
+      <div class="si-row" data-room-label="${t}">
+        <div class="si-main" onclick="toggleSubBab(this,${i})">
+          <span class="si-ico">📄</span>${t}
+          <span class="si-arrow" style="margin-left:auto;font-size:10px;color:#484f58;transition:transform .2s;">▶</span>
+        </div>
+      </div>
+      <div class="room-expand"></div>`).join('')
+  },
+  materi: {
+    title: '— Materi —',
+    html: ()=>['Bab 1','Bab 2','Bab 3','Referensi'].map((t,i)=>`
+      <div class="si-row" data-room-label="${t}">
+        <div class="si-main" onclick="toggleSubBab(this,${i})">
+          <span class="si-ico">📖</span>${t}
+          <span class="si-arrow" style="margin-left:auto;font-size:10px;color:#484f58;transition:transform .2s;">▶</span>
+        </div>
+      </div>
+      <div class="room-expand"></div>`).join('')
+  },
+  tuantanah: {
+    title: '— Organisasi —',
+    html: ()=>[
+      {ico:'🏛',lbl:'Dewan Mimbar', header:'Struktur Dewan Mimbar', page:'pageDewan'},
+      {ico:'👑',lbl:'My Lord',      header:'Profil Admin',           page:'pageMyLord'},
+      {ico:'📜',lbl:'Rule',         header:'Tata Tertib',            page:'pageRule'},
+    ].map((t,i)=>`
+      <div class="sub-item" onclick="gantiHeader('${t.header}',this,'${t.page}')">
+        <span class="si-ico">${t.ico}</span>${t.lbl}</div>`).join('')
+  },
+  liga: {
+    title: '— La Liga —',
+    html: ()=>[
+      {lbl:'Liga Minna 1'},
+      {lbl:'Liga Minna 2'},
+      {lbl:'Liga N5'},
+      {lbl:'Liga N4'},
+      {lbl:'Liga N3'},
+      {lbl:'Liga Choukai'},
+      {lbl:'Liga Kanji'},
+    ].map((t,i)=>`
+      <div class="sub-item" onclick="bukaLigaWait('${t.lbl}')" data-room-label="${t.lbl}">
+        <span class="si-ico">🏆</span>${t.lbl}<span class="si-arrow">▶</span></div>`).join('')
+  },
+};
+
+let activeMenu = null;
+let ligaSedangBerlangsung = false; // lock saat soal berlangsung
+
+function closeSub(){
+  if(ligaSedangBerlangsung) return; // blokir keluar saat liga aktif
+  activeMenu = null;
+  document.getElementById('subBar').classList.remove('open');
+  document.getElementById('header').classList.remove('sub-open');
+  document.getElementById('newsTicker').classList.remove('sub-open');
+  document.getElementById('chatWrap').classList.remove('sub-open');
+  document.getElementById('lencanaPage').classList.remove('sub-open');
+  document.querySelectorAll('.i-btn').forEach(b=>b.classList.remove('active'));
+  // reset header ke default
+  document.querySelector('#header h1').textContent = 'Mimbar Bebas';
+  // tutup semua org-page
+  tutupOrgPages();
+  tutupRoomPage();
+  tutupTrofiPage();
+  closeLencana();
+  hentikanCafetariaStatusPolling();
+}
+
+function tutupOrgPages(){
+  if(ligaSedangBerlangsung) return; // jangan tutup paksa saat liga berjalan
+  ['pageDewan','pageMyLord','pageRule','pageStatus','itemPage','itemFullPage','reviewMateriPage','ligaWaitPage','soalPage','scorePage','rankInter'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el){ el.classList.remove('open','sub-open'); }
+  });
+  clearInterval(soalTimerInterval);
+}
+
+let currentPreviewItem = null;
+
+function renderRoomTungguGrid(containerId, idx){
+  const members = dummyRoomUsers(idx);
+  document.getElementById(containerId).innerHTML = members.map(u=>`
+    <div class="room-member">
+      <div class="room-ava-wrap">
+        <div class="room-ava" style="border-color:${u.color}">👤</div>
+      </div>
+      <span class="room-mname" style="color:${u.color}">${u.name}</span>
+      <span class="room-mrole">${u.online?'Online':'Offline'}</span>
+    </div>`).join('');
+}
+
+function bukaItemPage(nama, ico, kategori, el){
+  currentPreviewItem = {nama, ico, kategori};
+  renderRoomTungguGrid('ipGrid', Math.floor(Math.random()*5));
+  document.querySelector('#header h1').textContent  = nama;
+  document.querySelectorAll('#subContent .sub-item,#subContent .si-row').forEach(s=>s.classList.remove('expanded'));
+  if(el){ const row = el.closest('.si-row') || el; row.classList.add('expanded'); }
+  tutupOrgPages();
+  const pg = document.getElementById('itemPage');
+  pg.classList.add('open');
+  if(document.getElementById('subBar').classList.contains('open'))
+    pg.classList.add('sub-open');
+}
+
+function expandFromPreview(){
+  if(!currentPreviewItem) return;
+  const {nama, ico, kategori} = currentPreviewItem;
+  bukaItemFull(nama, ico, kategori);
+}
+
+function tutupItemPage(){
+  document.getElementById('itemPage').classList.remove('open','sub-open');
+  document.querySelector('#header h1').textContent = 'Mimbar Bebas';
+  document.querySelectorAll('#subContent .sub-item,#subContent .si-row').forEach(s=>{
+    s.classList.remove('expanded');
+    const arrow = s.querySelector('.si-arrow');
+    if(arrow) arrow.style.transform = '';
+  });
+}
+
+// ── Halaman Full (Room Tunggu lengkap) ──
+function bukaItemFull(nama, ico, kategori){
+  renderRoomTungguGrid('ifGrid', Math.floor(Math.random()*5));
+  document.getElementById('ifJoinBtn').onclick = ()=>{
+    tutupItemFullPage();
+    tutupItemPage();
+    bukaRoomTungguSimulasi(nama);
+  };
+  document.querySelector('#header h1').textContent  = nama;
+  tutupOrgPages();
+  const pg = document.getElementById('itemFullPage');
+  pg.classList.add('open');
+  if(document.getElementById('subBar').classList.contains('open'))
+    pg.classList.add('sub-open');
+}
+
+function tutupItemFullPage(){
+  document.getElementById('itemFullPage').classList.remove('open','sub-open');
+  document.querySelector('#header h1').textContent = 'Mimbar Bebas';
+}
+
+// ── Review Materi: rangkuman poin-poin materi (dipicu long-press item Latihan/Materi) ──
+const REVIEW_MATERI_POIN = [
+  'Pahami konsep dasar sebelum lanjut ke topik yang lebih kompleks.',
+  'Perhatikan contoh soal yang diberikan, biasanya jadi acuan ujian.',
+  'Catat istilah-istilah penting yang sering muncul di setiap sub-bab.',
+  'Ulangi materi secara berkala agar tidak mudah lupa.',
+  'Diskusikan bagian yang belum dipahami di ruang Cafetaria atau ke Samurai.',
+];
+
+function bukaReviewMateri(label){
+  closeSub();
+  document.getElementById('rmTitle').textContent = '📋 Review — ' + label;
+  document.getElementById('rmList').innerHTML = REVIEW_MATERI_POIN.map((p,i)=>`
+    <div class="rule-item"><span class="rule-num">${String(i+1).padStart(2,'0')}.</span><span>${p}</span></div>`).join('');
+  document.getElementById('reviewMateriPage').classList.add('open');
+  document.querySelector('#header h1').textContent = 'Review Materi';
+}
+
+function tutupReviewMateri(){
+  document.getElementById('reviewMateriPage').classList.remove('open','sub-open');
+  document.querySelector('#header h1').textContent = 'Mimbar Bebas';
+}
+
+// ── Buka halaman konten: tutup sub-bar, ubah header, tampilkan item page ──
+function bukaKontenPage(nama, ico, kategori){
+  closeSub();
+  currentPreviewItem = {nama, ico, kategori};
+  // Tampilkan konten placeholder belajar
+  document.getElementById('ipGrid').innerHTML = `
+    <div style="grid-column:1/-1;display:flex;flex-direction:column;gap:10px;padding:0 2px;">
+      <div style="background:#161b22;border:1px solid #21262d;border-radius:12px;padding:14px 16px;">
+        <div style="font-size:11px;color:#484f58;letter-spacing:1px;font-family:monospace;margin-bottom:8px;">DESKRIPSI</div>
+        <div style="font-size:13px;color:#8b949e;line-height:1.7;">${nama} — materi ini sedang dipersiapkan. Konten lengkap akan segera tersedia.</div>
+      </div>
+      <div style="background:#161b22;border:1px solid #21262d;border-radius:12px;padding:14px 16px;">
+        <div style="font-size:11px;color:#484f58;letter-spacing:1px;font-family:monospace;margin-bottom:10px;">PROGRESS</div>
+        <div style="background:#0d1117;border-radius:8px;height:6px;overflow:hidden;">
+          <div style="background:#1f6feb;width:35%;height:100%;border-radius:8px;"></div>
+        </div>
+        <div style="font-size:10px;color:#484f58;margin-top:6px;">35% selesai</div>
+      </div>
+      <div style="background:#161b22;border:1px solid #21262d;border-radius:12px;padding:14px 16px;">
+        <div style="font-size:11px;color:#484f58;letter-spacing:1px;font-family:monospace;margin-bottom:10px;">TOPIK</div>
+        ${['Pengantar','Inti Materi','Latihan','Evaluasi'].map((tp,i)=>`
+          <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-top:${i?'1px solid #1c2128':'none'};">
+            <div style="width:22px;height:22px;border-radius:6px;background:${i<2?'#1a2f1a':'#21262d'};
+              border:1px solid ${i<2?'#3fb950':'#30363d'};display:flex;align-items:center;
+              justify-content:center;font-size:11px;flex-shrink:0;">${i<2?'✓':'○'}</div>
+            <span style="font-size:12px;color:${i<2?'#e6edf3':'#8b949e'};">${tp}</span>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  document.querySelector('#header h1').textContent  = nama;
+  tutupOrgPages();
+  const pg = document.getElementById('itemPage');
+  pg.classList.remove('sub-open');
+  pg.classList.add('open');
+}
+
+/* ═══ STATUS ANGGOTA berdasarkan lama bergabung ═══ */
+const JOIN_DATE = new Date('2024-01-01'); // tanggal bergabung user
+
+function getBulanBergabung(){
+  const now = new Date();
+  return (now.getFullYear() - JOIN_DATE.getFullYear()) * 12
+       + (now.getMonth() - JOIN_DATE.getMonth())
+       + (now.getDate() < JOIN_DATE.getDate() ? -1 : 0);
+}
+
+function getStatusAnggota(){
+  const bulan = getBulanBergabung();
+  if(bulan < 1)   return 'Kohai';
+  if(bulan <= 3)  return 'Senpai';
+  return 'Dai Senpai';
+}
+
+function getStatusAnggotaColor(){
+  const bulan = getBulanBergabung();
+  if(bulan < 1)  return '#56d364'; // hijau – kohai
+  if(bulan <= 3) return '#58a6ff'; // biru – senpai
+  return '#ffa657'; // oranye – dai senpai
+}
+
+function getStatusAnggotaBg(){
+  const bulan = getBulanBergabung();
+  if(bulan < 1)  return '#0d1a0d';
+  if(bulan <= 3) return '#1f3a5c';
+  return '#1a1200';
+}
+
+function getStatusAnggotaBorder(){
+  const bulan = getBulanBergabung();
+  if(bulan < 1)  return '#3fb950';
+  if(bulan <= 3) return '#1f6feb';
+  return '#ffa657';
+}
+
+function bukaStatusPage(){
+  const pg = document.getElementById('pageStatus');
+  if(pg){
+    pg.classList.add('open');
+    if(document.getElementById('subBar').classList.contains('open'))
+      pg.classList.add('sub-open');
+  }
+  document.querySelector('#header h1').textContent = 'Hak & Kewajiban';
+}
+
+function tutupStatusPage(){
+  const pg = document.getElementById('pageStatus');
+  if(pg) pg.classList.remove('open','sub-open');
+  document.querySelector('#header h1').textContent = 'Mimbar Bebas';
+}
+
+function toggleSub(key){
+  if(ligaSedangBerlangsung) return; // blokir semua icon bar saat liga aktif
+  const subBar   = document.getElementById('subBar');
+  const header   = document.getElementById('header');
+  const chatWrap = document.getElementById('chatWrap');
+  const lp       = document.getElementById('lencanaPage');
+  // klik icon bar selalu tutup my pride
+  closeLencana();
+  tutupOrgPages();
+  if(activeMenu===key){ closeSub(); return; }
+  if(activeMenu==='cafetaria') hentikanCafetariaStatusPolling();
+  activeMenu = key;
+  const m = MENUS[key];
+  // header tetap 'Mimbar Bebas' saat baru membuka sub-bar; berubah nanti saat item di dalamnya diklik
+  document.querySelector('#header h1').textContent = 'Mimbar Bebas';
+  document.getElementById('subTitle').textContent  = m.title;
+  document.getElementById('subContent').innerHTML  = m.html();
+  pasangLongPressRoomItems();
+  subBar.classList.add('open');
+  header.classList.add('sub-open');
+  document.getElementById('newsTicker').classList.add('sub-open');
+  chatWrap.classList.add('sub-open');
+  lp.classList.add('sub-open');
+  document.querySelectorAll('.i-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.i-btn.'+key).classList.add('active');
+}
+
+// Tutup sub-bar saat klik chat area
+document.getElementById('chatWrap').addEventListener('click', ()=>{ if(activeMenu && !ligaSedangBerlangsung) closeSub(); });
+
+// Tutup slide kanan (trofi/lencana) saat klik di luar: chatWrap, subContent, icon-bar
+document.getElementById('chatWrap').addEventListener('click', e=>{
+  const tp = document.getElementById('trofiPage');
+  const lp = document.getElementById('lencanaPage');
+  if((tp && tp.classList.contains('open')) || (lp && lp.classList.contains('open'))){
+    tutupSlideKanan();
+  }
+});
+document.getElementById('subBar').addEventListener('click', e=>{
+  const tp = document.getElementById('trofiPage');
+  const lp = document.getElementById('lencanaPage');
+  // Jangan tutup jika klik berasal dari badge/trofi yang membuka panel
+  if(e.target.closest('.lbadge') || e.target.closest('.trofi-row') || e.target.closest('.badge-sm')) return;
+  if((tp && tp.classList.contains('open')) || (lp && lp.classList.contains('open'))){
+    tutupSlideKanan();
+  }
+});
+document.querySelector('.icon-bar').addEventListener('click', e=>{
+  const tp = document.getElementById('trofiPage');
+  const lp = document.getElementById('lencanaPage');
+  if((tp && tp.classList.contains('open')) || (lp && lp.classList.contains('open'))){
+    tutupSlideKanan();
+  }
+});
+
+function gantiHeader(judul, el, pageId){
+  closeSub();
+  document.querySelector('#header h1').textContent = judul;
+  // buka halaman yang diminta sebagai halaman utama penuh
+  if(pageId){
+    const pg = document.getElementById(pageId);
+    if(pg) pg.classList.add('open');
+  }
+}
+
+// Tombol "← Kembali ke Chat" pada halaman Dewan Mimbar/My Lord/Rule
+function tutupOrgPageKeChat(){
+  tutupOrgPages();
+  document.querySelector('#header h1').textContent = 'Mimbar Bebas';
+}
+
+// Swipe kanan untuk tutup sub-bar
+let touchStartX = 0;
+document.addEventListener('touchstart', e=>{ touchStartX = e.touches[0].clientX; });
+document.addEventListener('touchend', e=>{
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if(dx > 60 && activeMenu && !ligaSedangBerlangsung) closeSub();
+});
+
+function editBio(){
+  const t=document.getElementById('bioText');
+  const i=document.getElementById('bioInput');
+  if(!t||!i)return;
+  i.value=t.dataset.val||'';
+  t.style.display='none';
+  i.style.display='block';
+  i.focus();
+}
+function simpanBio(){
+  const t=document.getElementById('bioText');
+  const i=document.getElementById('bioInput');
+  if(!t||!i)return;
+  const val=i.value.trim();
+  t.dataset.val=val;
+  t.textContent=val||'Tulis bio kamu di sini...';
+  t.style.color=val?'#e6edf3':'#8b949e';
+  i.style.display='none';
+  t.style.display='block';
+}
+
+function toggleAttach(){
+  document.getElementById('attachMenu').classList.toggle('open');
+  document.getElementById('attachOverlay').classList.toggle('open');
+}
+function tutupAttach(){
+  document.getElementById('attachMenu').classList.remove('open');
+  document.getElementById('attachOverlay').classList.remove('open');
+}
+
+/* ═══ MEDIA UPLOAD ═══ */
+let pendingMedia = null; // {type:'image'|'video', url, file}
+
+function handleMediaFile(input){
+  const file = input.files[0];
+  if(!file) return;
+  const url = URL.createObjectURL(file);
+  const isVideo = file.type.startsWith('video/');
+  pendingMedia = {type: isVideo?'video':'image', url, file};
+  renderMediaPreview();
+  input.value = '';
+}
+
+function renderMediaPreview(){
+  const bar = document.getElementById('mediaPreviewBar');
+  if(!pendingMedia){ bar.innerHTML=''; bar.classList.remove('show'); return; }
+  const el = pendingMedia.type==='video'
+    ? `<video src="${pendingMedia.url}" style="width:70px;height:70px;object-fit:cover;border-radius:10px;border:1px solid #30363d;"></video>`
+    : `<img src="${pendingMedia.url}" style="width:70px;height:70px;object-fit:cover;border-radius:10px;border:1px solid #30363d;">`;
+  bar.innerHTML = `<div class="mp-thumb">${el}<button class="mp-remove" onclick="hapusMedia()">✕</button></div>`;
+  bar.classList.add('show');
+}
+
+function hapusMedia(){
+  if(pendingMedia) URL.revokeObjectURL(pendingMedia.url);
+  pendingMedia = null;
+  renderMediaPreview();
+}
+
+/* ═══ KIRIM PESAN (terhubung ke server asli) ═══ */
+async function kirimPesan(){
+  const inp = document.getElementById('chatInput');
+  const teks = inp.value.trim();
+  if(!teks && !pendingMedia) return;
+  inp.value = '';
+  const mediaToSend = pendingMedia;
+  hapusMedia();
+  try{
+    if(mediaToSend){
+      const fd = new FormData();
+      fd.append('image', mediaToSend.file);
+      if(teks) fd.append('message', teks);
+      await fetch('/chat/send', { method:'POST', body: fd });
+    } else {
+      await fetch('/chat/send', {
+        method: 'POST',
+        headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        body: 'message=' + encodeURIComponent(teks)
+      });
+    }
+    await fetchMsgs();
+  }catch(e){}
+}
+
+/* ═══ PROFIL DEWAN ═══ */
+const DEWAN_PROFIL = {
+  kaisar: {
+    ico:'👑', bg:'#1a1200', border:'#ffa657', bannerColor:'linear-gradient(135deg,#2a1a00,#1a1200)',
+    name:'Shogun Agung', role:'KAISAR', roleColor:'#ffa657',
+    lencana:['🏅','⭐','🔥','👑','🎖'],
+    tugas:[
+      'Menetapkan visi dan arah komunitas secara keseluruhan',
+      'Mengambil keputusan strategis dan kebijakan utama',
+      'Menjadi penjaga nilai dan semangat organisasi',
+    ]
+  },
+  daimyo: {
+    ico:'⚔️', bg:'#0d1a2e', border:'#58a6ff', bannerColor:'linear-gradient(135deg,#0d2040,#0d1a2e)',
+    name:'Lord Bushido', role:'DAIMYO', roleColor:'#58a6ff',
+    lencana:['🏅','⭐','🔥','📅'],
+    tugas:[
+      'Membantu Kaisar dalam pengambilan keputusan penting',
+      'Mengelola operasional harian komunitas',
+      'Mengkoordinasi dan membina para Samurai',
+    ]
+  },
+  samurai1: {
+    ico:'🗡', bg:'#0d1a0d', border:'#56d364', bannerColor:'linear-gradient(135deg,#0a200a,#0d1a0d)',
+    name:'Ryu Kenshi', role:'SAMURAI', roleColor:'#56d364',
+    lencana:['🏅','🔥','📅'],
+    tugas:[
+      'Menjaga ketertiban dan kondusivitas ruang diskusi',
+      'Memastikan tata tertib komunitas ditegakkan',
+      'Menangani laporan dan pelanggaran anggota',
+    ]
+  },
+  samurai2: {
+    ico:'🗡', bg:'#0d1a0d', border:'#56d364', bannerColor:'linear-gradient(135deg,#0a200a,#0d1a0d)',
+    name:'Hana Tsuki', role:'SAMURAI', roleColor:'#56d364',
+    lencana:['🏅','📅','🎖'],
+    tugas:[
+      'Mendampingi dan mengorientasi anggota baru',
+      'Memfasilitasi dan memandu sesi latihan soal',
+      'Membuat rangkuman materi mingguan untuk anggota',
+    ]
+  },
+  samurai3: {
+    ico:'🗡', bg:'#0d1a0d', border:'#56d364', bannerColor:'linear-gradient(135deg,#0a200a,#0d1a0d)',
+    name:'Taro Hibiki', role:'SAMURAI', roleColor:'#56d364',
+    lencana:['🏅','⭐','🎖'],
+    tugas:[
+      'Mengurusi konten dan kurikulum materi pembelajaran',
+      'Memperbarui referensi dan bahan bab secara berkala',
+      'Berkoordinasi dengan pengajar untuk materi baru',
+    ]
+  },
+  samurai4: {
+    ico:'🗡', bg:'#0d1a0d', border:'#56d364', bannerColor:'linear-gradient(135deg,#0a200a,#0d1a0d)',
+    name:'Yuki Shiro', role:'SAMURAI', roleColor:'#56d364',
+    lencana:['🏅','🔥','📅'],
+    tugas:[
+      'Mengelola sistem Liga dan kompetisi antar anggota',
+      'Memperbarui papan peringkat dan statistik pemain',
+      'Merancang tantangan dan event bulanan komunitas',
+    ]
+  },
+};
+
+function bukaDewaProfile(key){
+  const p = DEWAN_PROFIL[key];
+  if(!p) return;
+  const card = document.getElementById('dewanProfilCard');
+  const ov   = document.getElementById('dewanProfilOverlay');
+  if(document.getElementById('subBar').classList.contains('open')){
+    card.style.left = 'calc(var(--icon-bar-w) + var(--sub-bar-w))';
+  } else {
+    card.style.left = 'var(--icon-bar-w)';
+  }
+  // banner
+  document.getElementById('dpBanner').style.background = p.bannerColor;
+  // avatar
+  const av = document.getElementById('dpAvatar');
+  av.textContent = p.ico;
+  av.style.background = p.bg;
+  av.style.boxShadow = `0 0 0 3px ${p.border}, 0 0 0 5px #161b22`;
+  // teks
+  document.getElementById('dpName').textContent     = p.name;
+  document.getElementById('dpUsername').textContent = '';
+  document.getElementById('dpRole').textContent     = p.role;
+  document.getElementById('dpRole').style.color     = p.roleColor;
+  // lencana
+  document.getElementById('dpLencana').innerHTML = p.lencana.map(l=>
+    `<div class="dp-badge">${l}</div>`).join('');
+  // tugas
+  document.getElementById('dpTugas').innerHTML = p.tugas.map((t,i)=>
+    `<div class="dp-tugas-item"><span class="dp-tugas-num">${String(i+1).padStart(2,'0')}.</span><span>${t}</span></div>`
+  ).join('');
+  ov.classList.add('open');
+  setTimeout(()=>card.classList.add('open'), 10);
+}
+
+function tutupDewaProfile(){
+  const card = document.getElementById('dewanProfilCard');
+  const ov   = document.getElementById('dewanProfilOverlay');
+  card.classList.remove('open');
+  setTimeout(()=>ov.classList.remove('open'), 250);
+}
+// ── Long-press pada sub-item: Latihan/Materi → Review Materi (Liga tidak punya long-press) ──
+function pasangLongPressRoomItems(){
+  // Latihan & Materi: struktur baru .si-row > .si-main (long-press di area kiri saja) -> buka Review Materi
+  document.querySelectorAll('#subContent .si-row[data-room-label]').forEach(row=>{
+    const main = row.querySelector('.si-main');
+    if(main) bindLongPress(main, ()=>bukaReviewMateri(row.dataset.roomLabel));
+  });
+  // Cafetaria: tahan lama pada NAMA room -> ganti nama room (server-side).
+  // Klik biasa pada seluruh item (di luar nama saat sedang diedit) -> langsung join room.
+  document.querySelectorAll('#subContent .si-room-name[data-cafetaria-name-idx]').forEach(el=>{
+    const idx = Number(el.dataset.cafetariaNameIdx);
+    bindLongPress(el, ()=>mulaiEditNamaRoom(el, idx));
+  });
+  mulaiCafetariaStatusPolling();
+}
+
+function bindLongPress(el, onLongPress){
+  if(el.dataset.lpBound) return; // hindari double-bind
+  el.dataset.lpBound = '1';
+  let timer = null, fired = false;
+  const start = e=>{
+    fired = false;
+    timer = setTimeout(()=>{
+      fired = true;
+      onLongPress();
+    }, 500);
+  };
+  const cancel = ()=> clearTimeout(timer);
+  el.addEventListener('pointerdown', start);
+  el.addEventListener('pointerup', cancel);
+  el.addEventListener('pointerleave', cancel);
+  el.addEventListener('contextmenu', e=>{ e.preventDefault(); onLongPress(); });
+  // cegah klik biasa ikut jalan kalau long-press sudah trigger
+  el.addEventListener('click', e=>{ if(fired){ e.stopPropagation(); fired=false; } });
+}
+
+// ── ROOM CAFETARIA — koneksi nyata via WebSocket (port 8083) ──
+// Hanya username asli (session login) yang bisa masuk; kapasitas
+// maksimal 5 orang dicek di server (webrtc.go), bukan disimulasikan.
+const CAFETARIA_COLORS = ['#58a6ff','#d2a8ff','#79c0ff','#ffa657','#56d364','#f78166'];
+function warnaUntukUser(name){
+  let h=0; for(let i=0;i<name.length;i++) h = (h*31 + name.charCodeAt(i))>>>0;
+  return CAFETARIA_COLORS[h % CAFETARIA_COLORS.length];
+}
+
+let myMicOn = false;
+let mySpeakerOn = true;      // speaker ON secara default; hanya berlaku lokal (tidak dibroadcast)
+let cafetariaWS = null;
+let cafetariaRoomLabel = '';
+let cafetariaUsers = []; // daftar username asli yang sedang di room (dari server)
+let cafetariaRoomMaster = ''; // username Room Master saat ini (orang pertama yang join)
+
+// ── Musik Room: list lagu + status play/pause disinkronkan via WebSocket ──
+let musicList = [];           // daftar lagu yang sudah diupload untuk room ini
+let musicState = null;        // {track_id, title, playing, position_sec, updated_at_ms} dari server
+let musicPopupOpen = false;
+
+// ── WebRTC audio P2P mesh ──
+// Tiap client di room membuat RTCPeerConnection langsung ke client lain
+// (mesh, cocok untuk room kecil maks 5 orang). Signaling (offer/answer/
+// candidate) lewat WebSocket /ws yang sama dipakai untuk join/leave.
+const RTC_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+let cafetariaJoinedIdx = null;
+let localMicStream = null;           // MediaStream dari getUserMedia (null kalau mic off)
+let peerConnections = {};            // {username: RTCPeerConnection}
+let remoteAudioEls = {};             // {username: <audio> element}
+let remoteMicOn = {};                // {username: true/false} — apakah peer itu sedang mengirim audio
+
+function gabungCafetariaRoom(idx){
+  if(cafetariaWS){ return; } // sudah di dalam room lain, jangan tumpang tindih
+  const label  = cafetariaRoomNames[idx] || CAFETARIA_ROOMS[idx];
+  const roomId = cafetariaRoomId(idx);
+  cafetariaRoomLabel = label;
+  cafetariaJoinedIdx = idx;
+
+  const page = document.getElementById('roomPage');
+  document.getElementById('roomPageTitle').textContent = label;
+  document.getElementById('roomPageStatus').textContent = 'MENYAMBUNG...';
+  document.getElementById('roomPageCount').textContent = `0/${CAFETARIA_ROOM_MAX}`;
+  cafetariaUsers = [];
+  cafetariaRoomMaster = '';
+  renderRoomGrid();
+  renderRoomMaster();
+  bukaRoomBar(page);
+
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(`${proto}//${location.hostname}:8083/ws?room=${encodeURIComponent(roomId)}`);
+  cafetariaWS = ws;
+
+  ws.onopen = ()=>{
+    document.getElementById('roomPageStatus').textContent = 'LIVE';
+    muatMusicList();
+  };
+
+  ws.onmessage = async (ev)=>{
+    let sig; try{ sig = JSON.parse(ev.data); }catch(e){ return; }
+    if(sig.type === 'room_full'){
+      alert('Room penuh, maksimal '+CAFETARIA_ROOM_MAX+' orang. Coba room lain.');
+      tutupRoomPage();
+      return;
+    }
+    if(sig.type === 'join' && sig.payload && sig.payload.users){
+      const usersBaru = sig.payload.users;
+      cafetariaUsers = usersBaru;
+      cafetariaRoomMaster = sig.payload.master || '';
+      renderRoomGrid();
+      renderRoomMaster();
+      if(sig.from === ME){
+        // Ini konfirmasi kita sendiri baru join -> mulai koneksi WebRTC
+        // ke SEMUA user lain yang sudah ada di room lebih dulu.
+        usersBaru.filter(u=>u!==ME).forEach(u=> buatPeerConnectionOffer(u));
+      }
+    }
+    if(sig.type === 'leave'){
+      cafetariaUsers = cafetariaUsers.filter(u=>u!==sig.from);
+      if(sig.payload && sig.payload.master !== undefined){
+        cafetariaRoomMaster = sig.payload.master || '';
+      }
+      renderRoomGrid();
+      renderRoomMaster();
+      tutupPeerConnection(sig.from);
+    }
+    if(sig.type === 'offer' && sig.from){
+      await terimaOffer(sig.from, sig.payload);
+    }
+    if(sig.type === 'answer' && sig.from){
+      await terimaAnswer(sig.from, sig.payload);
+    }
+    if(sig.type === 'candidate' && sig.from){
+      await terimaCandidate(sig.from, sig.payload);
+    }
+    if(sig.type === 'mic_status' && sig.from && sig.from !== ME){
+      remoteMicOn[sig.from] = !!(sig.payload && sig.payload.on);
+      renderRoomGrid();
+      tandaiBicara(sig.from, remoteMicOn[sig.from]);
+    }
+    if(sig.type === 'music_state' && sig.payload){
+      terapkanMusicState(sig.payload);
+    }
+  };
+
+  ws.onerror = ()=>{
+    document.getElementById('roomPageStatus').textContent = 'ERROR';
+  };
+
+  ws.onclose = (ev)=>{
+    if(cafetariaWS === ws){
+      cafetariaWS = null;
+      if(page.classList.contains('open') && ev.code !== 1000){
+        // koneksi putus tak terduga (mis. ditolak server karena belum login / room penuh)
+        document.getElementById('roomPageStatus').textContent = 'TERPUTUS';
+      }
+    }
+  };
+}
+
+function kirimSinyal(type, to, payload){
+  if(!cafetariaWS || cafetariaWS.readyState !== WebSocket.OPEN) return;
+  cafetariaWS.send(JSON.stringify({ type, to, payload }));
+}
+
+function buatAudioElUntuk(username){
+  if(remoteAudioEls[username]) return remoteAudioEls[username];
+  const audioEl = document.createElement('audio');
+  audioEl.autoplay = true;
+  audioEl.muted = !mySpeakerOn;
+  audioEl.dataset.forUser = username;
+  document.body.appendChild(audioEl);
+  remoteAudioEls[username] = audioEl;
+  return audioEl;
+}
+
+function tutupPeerConnection(username){
+  const pc = peerConnections[username];
+  if(pc){ pc.close(); delete peerConnections[username]; }
+  const audioEl = remoteAudioEls[username];
+  if(audioEl){ audioEl.remove(); delete remoteAudioEls[username]; }
+  delete remoteMicOn[username];
+}
+
+function buatPeerConnection(username){
+  if(peerConnections[username]) return peerConnections[username];
+  const pc = new RTCPeerConnection(RTC_CONFIG);
+  peerConnections[username] = pc;
+
+  // Kalau mic kita sedang ON, sertakan track audio langsung.
+  if(localMicStream){
+    localMicStream.getTracks().forEach(track=> pc.addTrack(track, localMicStream));
+  }
+
+  pc.onicecandidate = (e)=>{
+    if(e.candidate) kirimSinyal('candidate', username, e.candidate);
+  };
+  pc.ontrack = (e)=>{
+    const audioEl = buatAudioElUntuk(username);
+    audioEl.srcObject = e.streams[0];
+    remoteMicOn[username] = true;
+    renderRoomGrid();
+    tandaiBicara(username, true);
+  };
+  pc.onconnectionstatechange = ()=>{
+    if(['disconnected','failed','closed'].includes(pc.connectionState)){
+      remoteMicOn[username] = false;
+      renderRoomGrid();
+      tandaiBicara(username, false);
+    }
+  };
+  // Kalau track audio ditambahkan belakangan (mis. mic baru dinyalakan
+  // setelah koneksi sudah terbentuk), buat offer baru supaya peer lain
+  // ikut menerima track tersebut (renegotiation).
+  pc.onnegotiationneeded = async ()=>{
+    try{
+      const offer = await pc.createOffer({ offerToReceiveAudio: true });
+      await pc.setLocalDescription(offer);
+      kirimSinyal('offer', username, offer);
+    }catch(e){ /* abaikan race renegotiation */ }
+  };
+  return pc;
+}
+
+async function buatPeerConnectionOffer(username){
+  const pc = buatPeerConnection(username);
+  const offer = await pc.createOffer({ offerToReceiveAudio: true });
+  await pc.setLocalDescription(offer);
+  kirimSinyal('offer', username, offer);
+}
+
+async function terimaOffer(fromUser, offer){
+  const pc = buatPeerConnection(fromUser);
+  await pc.setRemoteDescription(new RTCSessionDescription(offer));
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  kirimSinyal('answer', fromUser, answer);
+}
+
+async function terimaAnswer(fromUser, answer){
+  const pc = peerConnections[fromUser];
+  if(!pc) return;
+  await pc.setRemoteDescription(new RTCSessionDescription(answer));
+}
+
+async function terimaCandidate(fromUser, candidate){
+  const pc = peerConnections[fromUser];
+  if(!pc) return;
+  try{ await pc.addIceCandidate(new RTCIceCandidate(candidate)); }catch(e){}
+}
+
+function tandaiBicara(username, bicara){
+  const card = document.querySelector(`#roomGrid .room-member[data-username="${CSS.escape(username)}"]`);
+  if(card) card.classList.toggle('speaking', bicara);
+}
+
+// Mic ON: minta izin microphone lalu sertakan audio ke SEMUA peer connection
+// yang sedang aktif di room ini. Mic OFF: hentikan track dan lepas dari peer.
+async function toggleMyMic(){
+  const btn = document.getElementById('roomMicBtn');
+  if(!myMicOn){
+    // Cafetaria (WS aktif) -> minta izin mic sungguhan.
+    if(cafetariaWS){
+      console.log('[Mic] Meminta akses mikrofon...');
+      try {
+        localMicStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+        console.log('[Mic] Stream didapat:', localMicStream);
+        console.log('[Mic] Audio tracks:', localMicStream.getAudioTracks());
+        localMicStream.getAudioTracks().forEach(t=>{
+          console.log('[Mic] Track:', t.label, '| enabled:', t.enabled, '| muted:', t.muted, '| readyState:', t.readyState);
+        });
+      } catch(e){
+        console.error('[Mic] getUserMedia gagal:', e.name, e.message);
+        alert('Tidak bisa mengaktifkan mic: '+e.name+' — '+e.message);
+        return;
+      }
+      // Tambahkan track audio ke semua peer connection yang sudah ada.
+      Object.values(peerConnections).forEach(pc=>{
+        localMicStream.getTracks().forEach(track=> pc.addTrack(track, localMicStream));
+      });
+      myMicOn = true;
+    } else {
+      // Room Tunggu simulasi (bukan cafetaria) -> tidak ada audio nyata.
+      myMicOn = true;
+    }
+  } else {
+    myMicOn = false;
+    if(localMicStream){
+      console.log('[Mic] Menghentikan stream mikrofon.');
+      localMicStream.getTracks().forEach(t=> t.stop());
+      localMicStream = null;
+    }
+  }
+  btn.classList.toggle('mic-on', myMicOn);
+  btn.classList.toggle('mic-off', !myMicOn);
+  btn.textContent = myMicOn ? '🎙' : '🎤';
+  // Cafetaria (WS) pakai daftar user asli; Room Tunggu (simulasi) pakai dummy.
+  if(cafetariaWS){
+    renderRoomGrid();
+    kirimSinyal('mic_status', '', { on: myMicOn }); // broadcast ke semua di room
+  } else {
+    renderRoomGridSimulasi();
+  }
+}
+
+// Speaker ON/OFF: murni lokal di device kita sendiri — mute/unmute semua
+// elemen <audio> peer lain. Tidak dibroadcast, karena tidak memengaruhi
+// apa yang didengar orang lain (beda dengan mic).
+function toggleMySpeaker(){
+  const btn = document.getElementById('roomSpeakerBtn');
+  mySpeakerOn = !mySpeakerOn;
+  Object.values(remoteAudioEls).forEach(audioEl=>{ audioEl.muted = !mySpeakerOn; });
+  btn.classList.toggle('speaker-on', mySpeakerOn);
+  btn.classList.toggle('speaker-off', !mySpeakerOn);
+  btn.textContent = mySpeakerOn ? '🔊' : '🔇';
+}
+
+// Buka room bar (footer) dan geser chat ke atas supaya tidak ketiban bar.
+// Buka room bar (footer) dan geser chat ke atas supaya tidak ketiban bar.
+// Room bar sengaja full-width (tidak ikut geser oleh sub-bar) supaya selalu
+// tampil di atas / menutupi bagian bawah sub-bar saat sub-bar terbuka.
+function bukaRoomBar(page){
+  page.classList.add('open');
+  document.getElementById('chatWrap').classList.add('room-bar-active');
+}
+
+function tutupRoomPage(){
+  document.getElementById('roomPage').classList.remove('open','sub-open');
+  document.getElementById('chatWrap').classList.remove('room-bar-active');
+  if(cafetariaWS){
+    cafetariaWS.close(1000, 'leave');
+    cafetariaWS = null;
+  }
+  // Tutup semua koneksi WebRTC audio dan lepaskan mic.
+  Object.keys(peerConnections).forEach(u=> tutupPeerConnection(u));
+  peerConnections = {};
+  remoteAudioEls = {};
+  remoteMicOn = {};
+  if(localMicStream){
+    localMicStream.getTracks().forEach(t=> t.stop());
+    localMicStream = null;
+  }
+  // Hentikan musik room dan bersihkan state-nya.
+  const musicAudio = document.getElementById('roomMusicAudio');
+  if(musicAudio){ musicAudio.pause(); musicAudio.src=''; }
+  musicList = [];
+  musicState = null;
+  tutupMusicPopup();
+  updateMusicButtonUI();
+  clearInterval(roomSimTimer);
+  roomSimTimer = null;
+  cafetariaUsers = [];
+  cafetariaRoomMaster = '';
+  roomSimMembers = [];
+  cafetariaJoinedIdx = null;
+  myMicOn = false;
+  mySpeakerOn = true;
+  const musicTicker = document.getElementById('musicTicker');
+  if(musicTicker) musicTicker.classList.remove('show');
+  const speakerBtn = document.getElementById('roomSpeakerBtn');
+  if(speakerBtn){
+    speakerBtn.classList.remove('speaker-off');
+    speakerBtn.classList.add('speaker-on');
+    speakerBtn.textContent = '🔊';
+  }
+}
+
+// Tampilkan siapa Room Master saat ini di baris atas footer bar.
+// Room Master = orang pertama yang join room ini (dinamis, dari server).
+// ── Musik Room ──
+// Popup list musik. Semua orang bisa lihat & dengar, tapi hanya Room Master
+// yang punya tombol upload dan toggle play/pause aktif.
+function toggleMusicPopup(){
+  if(!cafetariaWS){ return; } // musik cuma berlaku di dalam room cafetaria yang aktif
+  musicPopupOpen ? tutupMusicPopup() : bukaMusicPopup();
+}
+
+function bukaMusicPopup(){
+  musicPopupOpen = true;
+  document.getElementById('musicPopupOverlay').classList.add('open');
+  document.getElementById('musicPopup').classList.add('open');
+  muatMusicList();
+}
+
+function tutupMusicPopup(){
+  musicPopupOpen = false;
+  document.getElementById('musicPopupOverlay').classList.remove('open');
+  document.getElementById('musicPopup').classList.remove('open');
+}
+
+async function muatMusicList(){
+  const listEl = document.getElementById('musicPopupList');
+  const roomId = cafetariaRoomId(cafetariaJoinedIdx);
+  try{
+    const res = await fetch(`//${location.hostname}:8083/api/room/music/list?room_id=${encodeURIComponent(roomId)}`,
+      { credentials:'include' });
+    if(!res.ok) throw new Error('gagal');
+    musicList = await res.json();
+  }catch(e){
+    listEl.innerHTML = `<div class="music-empty">Gagal memuat daftar musik.</div>`;
+    return;
+  }
+  renderMusicPopup();
+}
+
+function renderMusicPopup(){
+  const listEl = document.getElementById('musicPopupList');
+  const isMaster = cafetariaRoomMaster === ME;
+  const uploadEl = document.getElementById('musicPopupUpload');
+  uploadEl.style.display = isMaster ? 'block' : 'none';
+
+  if(!musicList.length){
+    listEl.innerHTML = `<div class="music-empty">Belum ada lagu di room ini.</div>`
+      + (isMaster ? '' : `<div class="music-master-hint">Hanya Room Master yang bisa menambah lagu.</div>`);
+    return;
+  }
+
+  listEl.innerHTML = musicList.map(m=>{
+    const isActive = musicState && musicState.track_id === m.id;
+    const isPlaying = isActive && musicState.playing;
+    return `
+    <div class="music-item ${isActive?'active':''}">
+      <button class="music-toggle-btn ${isPlaying?'on':''}" ${isMaster?'':'disabled'}
+        onclick="toggleMusicPlay(${m.id}, '${escJs(m.title)}', '${escJs(m.url)}')">
+        ${isPlaying ? '⏸' : '▶'}
+      </button>
+      <div style="flex:1;min-width:0;${isMaster ? 'cursor:pointer;' : ''}"
+        ${isMaster ? `onclick="putarLaguDanTutup(${m.id}, '${escJs(m.title)}', '${escJs(m.url)}')"` : ''}>
+        <div class="music-item-title">${escHtml(m.title)}</div>
+        <div class="music-item-sub">diupload oleh ${escHtml(m.uploaded_by)}</div>
+      </div>
+      ${isMaster ? `<button class="music-del-btn" onclick="hapusLaguRoom(${m.id})">🗑</button>` : ''}
+    </div>`;
+  }).join('') + (isMaster ? '' : `<div class="music-master-hint">Hanya Room Master yang bisa memutar musik.</div>`);
+}
+
+function escJs(s){
+  return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+}
+
+// Toggle play/pause untuk sebuah lagu. Hanya dipanggil dari tombol yang
+// sudah dijaga isMaster di renderMusicPopup, tapi server tetap validasi ulang.
+function toggleMusicPlay(trackId, title, url){
+  if(cafetariaRoomMaster !== ME) return;
+  const sedangPlaySamaLagu = musicState && musicState.track_id === trackId && musicState.playing;
+  if(sedangPlaySamaLagu){
+    kirimMusicControl({ track_id: trackId, title, playing:false, position_sec: ambilPosisiAudioSekarang() });
+  } else {
+    kirimMusicControl({ track_id: trackId, title, playing:true, position_sec:0 });
+  }
+}
+
+// Klik nama lagu: selalu mulai putar lagu itu dari awal (bukan toggle),
+// lalu tutup popup supaya lagu lanjut berjalan di latar.
+function putarLaguDanTutup(trackId, title, url){
+  if(cafetariaRoomMaster !== ME) return;
+  kirimMusicControl({ track_id: trackId, title, playing:true, position_sec:0 });
+  tutupMusicPopup();
+}
+
+function ambilPosisiAudioSekarang(){
+  const audio = document.getElementById('roomMusicAudio');
+  return audio && !isNaN(audio.currentTime) ? audio.currentTime : 0;
+}
+
+function kirimMusicControl(partialState){
+  if(!cafetariaWS || cafetariaWS.readyState !== WebSocket.OPEN) return;
+  cafetariaWS.send(JSON.stringify({ type:'music_control', payload: partialState }));
+}
+
+// Menerapkan music_state yang diterima dari server (baik dari broadcast
+// Room Master maupun saat baru join) ke elemen <audio> lokal.
+function terapkanMusicState(state){
+  musicState = state;
+  const audio = document.getElementById('roomMusicAudio');
+  const item = musicList.find(m=>m.id === state.track_id);
+
+  if(state.playing && !item){
+    // musicList belum termuat (mis. music_state ini tiba lebih dulu saat
+    // baru join) -> muat list dulu, lalu terapkan ulang state yang sama.
+    muatMusicList().then(()=>{
+      if(musicState === state) terapkanMusicState(state);
+    });
+    return;
+  }
+  const url = item ? item.url : null;
+
+  if(state.playing && url){
+    const fullUrl = `//${location.hostname}:8083${url}`;
+    if(!audio.src || !audio.src.includes(url)){
+      audio.src = fullUrl;
+    }
+    // Hitung offset waktu berjalan sejak server mencatat posisi ini,
+    // supaya user yang baru join tetap ikut di posisi yang mendekati sama.
+    const elapsedSec = (Date.now() - (state.updated_at_ms||Date.now())) / 1000;
+    const target = state.position_sec + Math.max(0, elapsedSec);
+    if(Math.abs(audio.currentTime - target) > 1.2){
+      audio.currentTime = target;
+    }
+    audio.play().catch(()=>{
+      // Autoplay diblokir browser -> perlu interaksi user. Tampilkan hint kecil.
+      musicBtnTandaiButuhInteraksi();
+    });
+  } else if(!state.playing){
+    audio.pause();
+  }
+  updateMusicButtonUI();
+  if(musicPopupOpen) renderMusicPopup();
+}
+
+function musicBtnTandaiButuhInteraksi(){
+  const btn = document.getElementById('roomMusicBtn');
+  if(btn) btn.title = 'Ketuk untuk mengizinkan pemutaran musik';
+}
+
+function updateMusicButtonUI(){
+  const btn = document.getElementById('roomMusicBtn');
+  if(!btn) return;
+  const playing = !!(musicState && musicState.playing);
+  btn.classList.toggle('playing', playing);
+
+  const ticker = document.getElementById('musicTicker');
+  const tickerText = document.getElementById('musicTickerText');
+  if(ticker && tickerText){
+    if(playing && musicState.title){
+      tickerText.textContent = `${musicState.title}  •  ${musicState.title}`;
+      ticker.classList.add('show');
+    } else {
+      ticker.classList.remove('show');
+    }
+  }
+}
+
+async function uploadMusikRoom(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  if(cafetariaRoomMaster !== ME){
+    alert('Hanya Room Master yang boleh menambah musik.');
+    input.value = '';
+    return;
+  }
+  const roomId = cafetariaRoomId(cafetariaJoinedIdx);
+  const form = new FormData();
+  form.append('file', file);
+  form.append('room_id', roomId);
+  form.append('title', file.name.replace(/\.mp3$/i, ''));
+
+  try{
+    const res = await fetch(`//${location.hostname}:8083/api/room/music/upload`, {
+      method:'POST', credentials:'include', body: form
+    });
+    if(!res.ok){
+      const msg = await res.text();
+      alert('Gagal upload musik: '+msg);
+      return;
+    }
+    const uploaded = await res.json(); // {id, title, url, ...} dari server
+    input.value = '';
+    await muatMusicList();
+    // Langsung putar lagu yang baru diupload untuk semua orang di room.
+    if(uploaded && uploaded.id){
+      kirimMusicControl({ track_id: uploaded.id, title: uploaded.title, playing:true, position_sec:0 });
+    }
+  }catch(e){
+    alert('Gagal upload musik (koneksi bermasalah)');
+  }
+}
+
+async function hapusLaguRoom(id){
+  if(cafetariaRoomMaster !== ME) return;
+  const roomId = cafetariaRoomId(cafetariaJoinedIdx);
+  try{
+    const res = await fetch(`//${location.hostname}:8083/api/room/music/delete`, {
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id, room_id: roomId })
+    });
+    if(!res.ok){
+      const msg = await res.text();
+      alert('Gagal hapus lagu: '+msg);
+      return;
+    }
+    // Kalau lagu yang dihapus sedang diputar, hentikan.
+    if(musicState && musicState.track_id === id){
+      kirimMusicControl({ track_id:0, title:'', playing:false, position_sec:0 });
+    }
+    await muatMusicList();
+  }catch(e){
+    alert('Gagal hapus lagu (koneksi bermasalah)');
+  }
+}
+
+function renderRoomMaster(){
+  const el = document.getElementById('roomPageMaster');
+  if(!el) return;
+  if(!cafetariaRoomMaster){
+    el.textContent = 'Room Master: —';
+    return;
+  }
+  const label = cafetariaRoomMaster === ME ? `${cafetariaRoomMaster} (Kamu)` : cafetariaRoomMaster;
+  el.textContent = `Room Master: ${label}`;
+}
+
+function renderRoomGrid(){
+  const grid  = document.getElementById('roomGrid');
+  const count = document.getElementById('roomPageCount');
+  if(count) count.textContent = `${cafetariaUsers.length}/${CAFETARIA_ROOM_MAX}`;
+  if(!cafetariaUsers.length){
+    grid.innerHTML = '';
+    return;
+  }
+  grid.innerHTML = cafetariaUsers.map(name=>{
+    const isMe = name === ME;
+    const color = warnaUntukUser(name);
+    const micLive = isMe ? myMicOn : !!remoteMicOn[name];
+    // Badge speaker hanya berarti untuk kartu kita sendiri (status lokal,
+    // tidak ada gunanya ditampilkan pada kartu peer lain).
+    const speakerBadge = isMe
+      ? `<div class="room-speaker-badge ${mySpeakerOn ? 'live':'muted'}">${mySpeakerOn ? '🔊':'🔇'}</div>`
+      : '';
+    return `
+    <div class="room-member" data-username="${escHtml(name)}">
+      <div class="room-ava-wrap">
+        <div class="room-ava" style="border-color:${color}">${isMe?'🙂':'👤'}</div>
+        <div class="room-mic-badge ${micLive ? 'live':'muted'}">${micLive ? '🎤':'🎤🚫'}</div>
+        ${speakerBadge}
+      </div>
+      <span class="room-mname" style="color:${color}">${escHtml(name)}${isMe?' (Kamu)':''}</span>
+      <span class="room-mrole">Online</span>
+    </div>`;
+  }).join('');
+}
+
+// ── Room Tunggu untuk Latihan & Materi (TETAP simulasi, bukan cafetaria) ──
+// Dipanggil dari "Gabung Room" pada halaman Room Tunggu penuh (Latihan/Materi).
+// Tidak memakai WebSocket / kapasitas nyata karena bukan bagian dari
+// permintaan cafetaria — perilakunya dipertahankan seperti semula.
+let roomSimTimer = null;
+let roomSimMembers = [];
+
+function bukaRoomTungguSimulasi(label){
+  const page = document.getElementById('roomPage');
+  document.getElementById('roomPageTitle').textContent = label;
+  document.getElementById('roomPageMaster').textContent = ''; // tidak berlaku di Room Tunggu simulasi
+  document.getElementById('roomPageStatus').textContent = 'LIVE';
+  document.getElementById('roomPageCount').textContent = '';
+  const dummy = dummyRoomUsers(Math.floor(Math.random()*5)).map(u=>({...u, micOn: u.online && Math.random()>0.4}));
+  dummy.unshift({name:'Kamu', color:'#58a6ff', online:true, micOn:myMicOn, isMe:true});
+  roomSimMembers = dummy;
+  renderRoomGridSimulasi();
+  bukaRoomBar(page);
+  clearInterval(roomSimTimer);
+  roomSimTimer = setInterval(()=>{
+    document.querySelectorAll('#roomGrid .room-member').forEach(m=>{
+      const canSpeak = m.dataset.canSpeak === '1';
+      const hasLiveMic = m.querySelector('.room-mic-badge').classList.contains('live');
+      const speaking = canSpeak && hasLiveMic && Math.random() > 0.55;
+      m.classList.toggle('speaking', speaking);
+    });
+  }, 1400);
+}
+
+function renderRoomGridSimulasi(){
+  const grid = document.getElementById('roomGrid');
+  grid.innerHTML = roomSimMembers.map((u,i)=>{
+    if(u.isMe) u.micOn = myMicOn;
+    return `
+    <div class="room-member" data-idx="${i}" data-can-speak="${u.online?1:0}">
+      <div class="room-ava-wrap">
+        <div class="room-ava" style="border-color:${u.color}">${u.isMe?'🙂':'👤'}</div>
+        <div class="room-mic-badge ${u.micOn?'live':'muted'}">${u.micOn?'🎤':'🎤🚫'}</div>
+      </div>
+      <span class="room-mname" style="color:${u.color}">${u.name}</span>
+      <span class="room-mrole">${u.online?'Online':'Offline'}</span>
+    </div>`;
+  }).join('');
+}
+
+
+
+function pasangLongPress(row){
+  row.addEventListener('pointerdown', e=>{
+    pressTimer = setTimeout(()=>{ bukaReaction(row, e); }, 500);
+  });
+  row.addEventListener('pointerup',   ()=>clearTimeout(pressTimer));
+  row.addEventListener('pointerleave',()=>clearTimeout(pressTimer));
+  row.addEventListener('contextmenu', e=>{ e.preventDefault(); bukaReaction(row, e); });
+}
+
+function bukaReaction(row, e){
+  targetRow = row;
+  const popup = document.getElementById('reactPopup');
+  const x = Math.min(e.clientX, window.innerWidth - 380);
+  const y = Math.max(e.clientY - 60, 8);
+  popup.style.left = x + 'px';
+  popup.style.top  = y + 'px';
+  popup.classList.add('show');
+  e.preventDefault();
+}
+
+function addReaction(emot){
+  if(!targetRow) return;
+  let area = targetRow.querySelector('.msg-reactions');
+  if(!area){ area = document.createElement('div'); area.className='msg-reactions'; targetRow.appendChild(area); }
+  // cek badge sudah ada
+  let badge = [...area.querySelectorAll('.msg-react-badge')].find(b=>b.dataset.emot===emot);
+  if(badge){
+    let cnt = parseInt(badge.dataset.count||1)+1;
+    badge.dataset.count = cnt;
+    badge.textContent = emot + (cnt>1?` ${cnt}`:'');
+  } else {
+    badge = document.createElement('span');
+    badge.className = 'msg-react-badge';
+    badge.dataset.emot = emot;
+    badge.dataset.count = 1;
+    badge.textContent = emot;
+    area.appendChild(badge);
+  }
+  tutupReaction();
+}
+
+function tutupReaction(){
+  document.getElementById('reactPopup').classList.remove('show');
+  targetRow = null;
+}
+
+// pasang long press ke pesan yang sudah ada
+document.querySelectorAll('.msg-row').forEach(pasangLongPress);
+// klik luar popup = tutup
+document.addEventListener('pointerdown', e=>{
+  if(!document.getElementById('reactPopup').contains(e.target)) tutupReaction();
+});
+
+function updateStatusBar(){
+  // Kumpulkan semua user unik dari msg-row di chatBox
+  const seen = {};
+  document.querySelectorAll('#chatBox .msg-row').forEach(row=>{
+    const nameEl = row.querySelector('.msg-name');
+    if(!nameEl) return;
+    const name = nameEl.textContent.trim();
+    const isOnline = nameEl.querySelector('.ind.online') !== null;
+    if(!(name in seen)) seen[name] = isOnline;
+    else if(isOnline) seen[name] = true;
+  });
+  let on=0, off=0;
+  Object.values(seen).forEach(v=> v ? on++ : off++);
+  document.getElementById('onlineCount').textContent = on;
+  document.getElementById('offlineCount').textContent = off;
+}
+
+/* ═══ ICON BAR LONG PRESS PREVIEW ═══ */
+const ICON_META = {
+  room:      {ico:'👤', lbl:'My Personality'},
+  tuantanah: {ico:'🎭', lbl:'Organisasi'},
+  liga:      {ico:'🏆', lbl:'La Liga'},
+  materi:    {ico:'📚', lbl:'Materi'},
+  latihan:   {ico:'📝', lbl:'Latihan Soal'},
+};
+let iconPreviewTimer = null;
+
+function pasangIconPreview(){
+  document.querySelectorAll('.icon-bar .i-btn').forEach(btn=>{
+    const key = [...btn.classList].find(c => ICON_META[c]);
+    if(!key) return; // skip cafetaria dan sm buttons
+    btn.addEventListener('pointerdown', e=>{
+      iconPreviewTimer = setTimeout(()=>{
+        const meta = ICON_META[key];
+        const rect = btn.getBoundingClientRect();
+        const preview = document.getElementById('iconPreview');
+        document.getElementById('ipPreviewIco').textContent = meta.ico;
+        document.getElementById('ipPreviewLbl').textContent = meta.lbl;
+        preview.style.top = (rect.top + rect.height/2 - 30) + 'px';
+        preview.classList.add('show');
+      }, 500);
+    });
+    btn.addEventListener('pointerup',    ()=>{ clearTimeout(iconPreviewTimer); tutupIconPreview(); });
+    btn.addEventListener('pointerleave', ()=>{ clearTimeout(iconPreviewTimer); tutupIconPreview(); });
+    btn.addEventListener('contextmenu',  e=>e.preventDefault());
+  });
+}
+
+function tutupIconPreview(){
+  document.getElementById('iconPreview').classList.remove('show');
+}
+
+/* ═══ NOTIF POPUP ═══ */
+let notifOpen = false;
+
+function toggleNotif(e){
+  e.stopPropagation();
+  notifOpen = !notifOpen;
+  document.getElementById('notifPopup').classList.toggle('show', notifOpen);
+  if(notifOpen) document.getElementById('notifDot').style.display = 'none';
+}
+
+// tutup notif saat klik luar
+document.addEventListener('pointerdown', e=>{
+  const notif  = document.getElementById('notifPopup');
+  if(notifOpen && !notif.contains(e.target)){
+    notifOpen = false;
+    notif.classList.remove('show');
+  }
+});
+
+function waktuSekarang(){
+  const now = new Date();
+  return `29 Jun 2026 • ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+}
+
+/* ═══ TOMBOL SCROLL KE CHAT TERBARU ═══ */
+let pesanBelumDilihat = 0;
+
+function cekPosisiScroll(){
+  const box = document.getElementById('chatBox');
+  const btn = document.getElementById('scrollBottomBtn');
+  const jarakKeBawah = box.scrollHeight - box.scrollTop - box.clientHeight;
+  const tenggelam = jarakKeBawah > 80; // chat tidak di posisi paling bawah
+  btn.classList.toggle('show', tenggelam);
+  if(!tenggelam){
+    pesanBelumDilihat = 0;
+    updateScrollBadge();
+  }
+}
+
+function updateScrollBadge(){
+  const badge = document.getElementById('scrollBottomBadge');
+  if(pesanBelumDilihat > 0){
+    badge.style.display = 'flex';
+    badge.textContent = pesanBelumDilihat > 9 ? '9+' : pesanBelumDilihat;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function scrollChatKeBawah(){
+  const box = document.getElementById('chatBox');
+  box.scrollTo({top: box.scrollHeight, behavior:'smooth'});
+  pesanBelumDilihat = 0;
+  updateScrollBadge();
+}
+
+document.getElementById('chatBox').addEventListener('scroll', cekPosisiScroll);
+
+/* ═══ CHAT ASLI: fetch & render dari server ═══ */
+const ME = '__USERNAME__';
+let lastId = 0;
+
+const NAME_COLORS = ['#58a6ff','#3fb950','#d2a8ff','#f78166','#79c0ff','#56d364','#ffa657','#ff7b72'];
+function nameColor(name){
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return NAME_COLORS[h % NAME_COLORS.length];
+}
+
+function escHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function timeStrChat(ts){
+  const d = new Date(ts.replace(' ','T') + 'Z');
+  const BLN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
+  return `${d.getDate()} ${BLN[d.getMonth()]} ${d.getFullYear()} • ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+function renderMsgs(msgs){
+  if(!msgs.length) return;
+  const box = document.getElementById('chatBox');
+  const loadingEl = document.getElementById('chatLoadingMsg');
+  if(loadingEl) loadingEl.remove();
+  const jarakKeBawah = box.scrollHeight - box.scrollTop - box.clientHeight;
+  const wasAtBottom = jarakKeBawah < 80;
+  msgs.forEach(m=>{
+    const isMine = m.username === ME;
+    const row = document.createElement('div');
+    row.className = 'msg-row';
+    row.dataset.id = m.id;
+    row.dataset.mine = isMine ? '1' : '0';
+    const imgHtml = m.file_type === 'image'
+      ? `<img class="msg-img" src="/chat/image?id=${m.id}" onclick="lihatGambar(this.src)" alt="foto">`
+      : m.file_type === 'file'
+      ? `<a class="msg-file" href="/chat/image?id=${m.id}" download="${escHtml(m.file_name||'file')}">📄 ${escHtml(m.file_name||'file')}</a>`
+      : '';
+    const txtHtml = m.message ? `<div class="msg-text">${escHtml(m.message)}</div>` : '';
+    row.innerHTML = `
+      <div class="msg-name" style="color:${nameColor(m.username)}"><span class="ind online"></span>${escHtml(m.username)}</div>
+      <span class="msg-time">${timeStrChat(m.created_at)}</span>
+      ${txtHtml}${imgHtml}
+      <div class="msg-reactions"></div>`;
+    pasangLongPress(row);
+    box.appendChild(row);
+    lastId = Math.max(lastId, m.id);
+  });
+  updateStatusBar();
+  if(wasAtBottom){
+    box.scrollTop = box.scrollHeight;
+  } else {
+    pesanBelumDilihat += msgs.length;
+    updateScrollBadge();
+  }
+  cekPosisiScroll();
+}
+
+async function fetchMsgs(){
+  try{
+    const r = await fetch('/chat/messages?since=' + lastId);
+    const data = await r.json();
+    if(data.messages && data.messages.length){
+      renderMsgs(data.messages);
+    } else if(lastId === 0){
+      const loadingEl = document.getElementById('chatLoadingMsg');
+      if(loadingEl) loadingEl.textContent = 'Belum ada pesan. Mulai percakapan!';
+    }
+  }catch(e){}
+}
+
+function lihatGambar(src){
+  window.open(src, '_blank');
+}
+
+setInterval(fetchMsgs, 3000);
+
+window.onload=()=>{
+  fetchMsgs().then(()=>{ document.getElementById('chatBox').scrollTop=99999; });
+  updateStatusBar();
+  pasangIconPreview();
+  cekPosisiScroll();
+  muatMyProfile();
+  muatLigaStats();
+}
+</script>
+</body></html>

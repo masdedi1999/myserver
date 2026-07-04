@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="id"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<title>My Lord Panel</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:sans-serif;background:#0d1117;color:#e6edf3;min-height:100dvh;padding-bottom:40px;}
+
+.header{position:sticky;top:0;background:#161b22;border-bottom:1px solid #21262d;
+padding:14px 18px;display:flex;align-items:center;justify-content:center;gap:10px;z-index:10;}
+.header h1{font-size:18px;letter-spacing:.5px;color:#e6edf3;text-align:center;}
+.header h1 span{color:#f0a500;}
+
+.wrap{max-width:920px;margin:0 auto;padding:20px 16px;}
+.section-title{font-size:13px;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;
+margin:26px 0 10px;}
+.section-title:first-child{margin-top:0;}
+
+table{width:100%;border-collapse:collapse;background:#161b22;border:1px solid #21262d;
+border-radius:10px;overflow:hidden;}
+thead th{background:#1c2128;color:#8b949e;font-size:11px;text-transform:uppercase;
+letter-spacing:.5px;text-align:left;padding:9px 10px;border-bottom:1px solid #21262d;}
+tbody td{padding:10px 10px;border-bottom:1px solid #1c2128;font-size:13.5px;vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+
+/* ── Tabel 1: Member (tetap tabel, bisa digeser horizontal) ── */
+.member-table-scroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px;}
+.member-table-scroll table{min-width:640px;}
+.col-no{width:36px;color:#8b949e;white-space:nowrap;}
+.col-foto{width:44px;text-align:center;white-space:nowrap;}
+.col-foto img{width:36px;height:48px;object-fit:cover;border-radius:4px;border:1px solid #30363d;}
+.col-foto .no-foto{width:36px;height:48px;border-radius:4px;border:1px dashed #30363d;display:inline-flex;align-items:center;justify-content:center;color:#484f58;font-size:9px;text-align:center;line-height:1.2;}
+.col-user{font-weight:600;}
+tbody td{white-space:nowrap;}
+tbody td.wrap-ok{white-space:normal;}
+.member-status-cell{display:flex;flex-direction:column;gap:2px;min-width:110px;}
+.member-status{font-size:12px;font-weight:600;}
+.member-status.status-aktif{color:#3fb950;}
+.member-status.status-cekal{color:#f85149;}
+.member-status.status-pending{color:#e3b341;}
+.member-level{font-size:11px;font-weight:600;padding:1px 8px;border-radius:8px;width:fit-content;}
+.member-level.level-kohai{color:#56d364;background:#0d1a0d;}
+.member-level.level-senpai{color:#58a6ff;background:#1f3a5c;}
+.member-level.level-dai-senpai{color:#ffa657;background:#1a1200;}
+.member-level.level-kaisar{color:#d2a8ff;background:#2d1a3d;}
+.member-level.level-default{color:#8b949e;background:#161b22;}
+.member-actions{display:flex;gap:6px;margin-top:6px;}
+.btn-aktifkan{padding:5px 10px;border-radius:6px;border:1px solid #238636;background:#1f6feb;
+color:#fff;font-size:11.5px;cursor:pointer;font-weight:600;white-space:nowrap;}
+.btn-aktifkan:hover{background:#388bfd;}
+.btn-aktifkan:disabled{background:#21262d;border-color:#30363d;color:#8b949e;cursor:default;}
+.btn-suspend{padding:5px 10px;border-radius:6px;border:1px solid #30363d;background:#21262d;
+color:#e6edf3;font-size:11.5px;cursor:pointer;font-weight:600;white-space:nowrap;}
+.btn-suspend:hover{background:#30363d;}
+.btn-suspend.cekal{background:#f85149;border-color:#f85149;color:#fff;cursor:default;}
+.btn-suspend.cekal:hover{background:#f85149;}
+
+/* ── Bagian 2: Menu Upload Database — daftar bernomor, urut ke bawah ── */
+.asset-list{display:flex;flex-direction:column;}
+.asset-row{padding:12px 2px;border-bottom:1px solid #1c2128;}
+.asset-row:last-child{border-bottom:none;}
+.asset-label{font-size:14.5px;margin-bottom:8px;}
+.asset-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.asset-preview{color:#8b949e;font-size:12.5px;}
+
+.btn{padding:7px 11px;border-radius:7px;border:none;font-size:12px;cursor:pointer;font-weight:600;
+white-space:nowrap;}
+.btn-file{background:#21262d;border:1px solid #30363d;color:#e6edf3;}
+.btn-file:hover{background:#30363d;}
+.btn-kirim{background:#1f6feb;color:#fff;margin-left:auto;}
+.btn-kirim:hover{background:#388bfd;}
+.btn-kirim:disabled{background:#21262d;color:#484f58;cursor:not-allowed;}
+input[type=file]{display:none;}
+
+.preview-img{width:30px;height:30px;border-radius:6px;object-fit:cover;border:1px solid #30363d;
+vertical-align:middle;margin-right:6px;}
+.preview-file{color:#58a6ff;font-size:12.5px;}
+.preview-empty{color:#484f58;font-style:italic;font-size:12.5px;}
+
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+background:#1f6feb;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;
+opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;z-index:100;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── Kartu swipe: panel & track width diatur dinamis lewat JS (lihat createSwipeCard) ── */
+.swipe-wrap{position:relative;overflow:hidden;border-radius:10px;touch-action:pan-y;}
+.swipe-track{display:flex;height:100%;transition:transform .3s ease;}
+.swipe-track.dragging{transition:none;}
+.swipe-panel{flex-shrink:0;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.swipe-panel table{margin:0;}
+.inv-cat-title{padding:2px 2px 8px;font-size:12px;color:#8b949e;text-transform:uppercase;
+letter-spacing:.5px;}
+.inv-cat-title span{color:#f0a500;}
+
+.swipe-dots{display:flex;justify-content:center;gap:6px;margin-top:10px;}
+.swipe-dot{width:6px;height:6px;border-radius:50%;background:#30363d;transition:background .2s,width .2s;}
+.swipe-dot.active{background:#1f6feb;width:18px;border-radius:3px;}
+
+/* ── Panel 3: Cari Data Member ── */
+.search-body{padding:4px 12px 14px;}
+.search-group{margin-top:14px;}
+.search-group:first-child{margin-top:4px;}
+.search-group label{display:block;font-size:12.5px;color:#8b949e;margin-bottom:6px;}
+.search-row{display:flex;gap:8px;}
+.search-row input{flex:1;background:#0d1117;border:1px solid #30363d;color:#e6edf3;
+border-radius:7px;padding:8px 10px;font-size:13.5px;}
+.search-row .btn-kirim{margin-left:0;flex-shrink:0;}
+
+.search-results{margin-top:18px;}
+.search-empty{color:#484f58;font-style:italic;font-size:12.5px;padding:6px 2px;}
+.search-results table{margin:0;}
+
+/* ── Halaman Inventaris (daftar PDF, 10 baris, bisa di-scroll) ── */
+.inventory-table-wrap{max-height:430px;overflow-y:auto;border-radius:10px;}
+.inventory-table-wrap table{margin:0;}
+.col-pdf-name{font-weight:600;}
+.col-pdf-empty{color:#484f58;font-style:italic;}
+
+/* ── Footer bar: nav + keluar, fixed di bawah ── */
+:root{--header-h:61px;--footer-h:64px;}
+.app-shell{position:relative;min-height:calc(100dvh - var(--header-h) - var(--footer-h));}
+
+.footer-bar{position:fixed;left:0;right:0;bottom:0;height:var(--footer-h);
+background:#161b22;border-top:1px solid #21262d;display:flex;align-items:stretch;
+box-shadow:0 -2px 14px rgba(0,0,0,.4);z-index:30;}
+.footer-btn{flex:1;background:none;border:none;color:#8b949e;
+display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+font-size:21px;cursor:pointer;}
+.footer-btn span{font-size:10.5px;font-weight:600;letter-spacing:.2px;color:inherit;}
+.footer-btn.active{color:#1f6feb;}
+.footer-btn:active{background:#1c2128;}
+.footer-btn.footer-logout{color:#f85149;}
+
+.main-content{width:100%;min-height:calc(100dvh - var(--header-h) - var(--footer-h));
+display:flex;flex-direction:column;align-items:center;justify-content:center;
+padding-bottom:var(--footer-h);}
+.main-content > div{width:100%;}
+</style></head>
+<body>
+
+<div class="header" id="topHeader">
+  <h1 id="pageTitle"><span>Data Base</span></h1>
+</div>
+
+<div class="app-shell">
+
+<div class="main-content">
+
+<div id="mainPage">
+
+<div class="wrap">
+
+  <div class="section-title">Daftar Member</div>
+  <div class="member-table-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th class="col-no">No</th>
+        <th class="col-foto">Foto</th>
+        <th>Nama</th>
+        <th>No KTA</th>
+        <th>Bergabung Sejak</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="memberBody"></tbody>
+  </table>
+  </div>
+
+</div>
+
+</div><!-- /mainPage -->
+
+<div id="searchPage" style="display:none;">
+
+  <div class="wrap">
+    <div class="section-title">Cari Data Member</div>
+    <div class="search-body">
+      <div class="search-group">
+        <label>1. Cari berdasarkan Nama</label>
+        <div class="search-row">
+          <input type="text" id="searchNama" placeholder="Ketik nama member...">
+          <button class="btn btn-kirim" onclick="searchMember('nama')">🔍 Cari</button>
+        </div>
+      </div>
+      <div class="search-group">
+        <label>2. Cari berdasarkan No KTA</label>
+        <div class="search-row">
+          <input type="text" id="searchKta" placeholder="Ketik No KTA...">
+          <button class="btn btn-kirim" onclick="searchMember('kta')">🔍 Cari</button>
+        </div>
+      </div>
+      <div class="search-results" id="searchResults">
+        <div class="search-empty">Hasil pencarian akan tampil di sini.</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /searchPage -->
+
+<div id="uploadPage" style="display:none;">
+
+  <div class="wrap">
+    <div class="section-title">Menu Upload Database</div>
+    <div class="asset-list" id="assetBody">
+      <div class="asset-row" data-key="file_pdf">
+        <div class="asset-label">1.File Pdf</div>
+        <div class="asset-controls">
+          <button class="btn btn-file" data-action="pick">📁 Tambah File</button>
+          <input type="file" class="asset-input">
+          <span class="asset-preview"><span class="preview-empty">belum ada</span></span>
+          <button class="btn btn-kirim" data-action="kirim" disabled>📤 Kirim</button>
+        </div>
+      </div>
+      <div class="asset-row" data-key="emot">
+        <div class="asset-label">2.Emot</div>
+        <div class="asset-controls">
+          <button class="btn btn-file" data-action="pick">📁 Tambah File</button>
+          <input type="file" class="asset-input">
+          <span class="asset-preview"><span class="preview-empty">belum ada</span></span>
+          <button class="btn btn-kirim" data-action="kirim" disabled>📤 Kirim</button>
+        </div>
+      </div>
+      <div class="asset-row" data-key="gambar">
+        <div class="asset-label">3.Gambar</div>
+        <div class="asset-controls">
+          <button class="btn btn-file" data-action="pick">📁 Tambah File</button>
+          <input type="file" class="asset-input">
+          <span class="asset-preview"><span class="preview-empty">belum ada</span></span>
+          <button class="btn btn-kirim" data-action="kirim" disabled>📤 Kirim</button>
+        </div>
+      </div>
+      <div class="asset-row" data-key="popup">
+        <div class="asset-label">4.Pop Up</div>
+        <div class="asset-controls">
+          <button class="btn btn-file" data-action="pick">📁 Tambah File</button>
+          <input type="file" class="asset-input">
+          <span class="asset-preview"><span class="preview-empty">belum ada</span></span>
+          <button class="btn btn-kirim" data-action="kirim" disabled>📤 Kirim</button>
+        </div>
+      </div>
+      <div class="asset-row" data-key="text_berita">
+        <div class="asset-label">5.Text Berita</div>
+        <div class="asset-controls">
+          <button class="btn btn-file" data-action="pick">📁 Tambah File</button>
+          <input type="file" class="asset-input">
+          <span class="asset-preview"><span class="preview-empty">belum ada</span></span>
+          <button class="btn btn-kirim" data-action="kirim" disabled>📤 Kirim</button>
+        </div>
+      </div>
+      <div class="asset-row" data-key="background_mimbar">
+        <div class="asset-label">6.Back Ground halaman mimbar bebas</div>
+        <div class="asset-controls">
+          <button class="btn btn-file" data-action="pick">📁 Tambah File</button>
+          <input type="file" class="asset-input">
+          <span class="asset-preview"><span class="preview-empty">belum ada</span></span>
+          <button class="btn btn-kirim" data-action="kirim" disabled>📤 Kirim</button>
+        </div>
+      </div>
+      <div class="asset-row" data-key="bingkai_foto">
+        <div class="asset-label">7.Bingkai foto profil</div>
+        <div class="asset-controls">
+          <button class="btn btn-file" data-action="pick">📁 Tambah File</button>
+          <input type="file" class="asset-input">
+          <span class="asset-preview"><span class="preview-empty">belum ada</span></span>
+          <button class="btn btn-kirim" data-action="kirim" disabled>📤 Kirim</button>
+        </div>
+      </div>
+      <div class="asset-row" data-key="lencana">
+        <div class="asset-label">8.Lencana</div>
+        <div class="asset-controls">
+          <button class="btn btn-file" data-action="pick">📁 Tambah File</button>
+          <input type="file" class="asset-input">
+          <span class="asset-preview"><span class="preview-empty">belum ada</span></span>
+          <button class="btn btn-kirim" data-action="kirim" disabled>📤 Kirim</button>
+        </div>
+      </div>
+      <div class="asset-row" data-key="trofi">
+        <div class="asset-label">9.trofi</div>
+        <div class="asset-controls">
+          <button class="btn btn-file" data-action="pick">📁 Tambah File</button>
+          <input type="file" class="asset-input">
+          <span class="asset-preview"><span class="preview-empty">belum ada</span></span>
+          <button class="btn btn-kirim" data-action="kirim" disabled>📤 Kirim</button>
+        </div>
+      </div>
+      <div class="asset-row" data-key="musik">
+        <div class="asset-label">10.musik</div>
+        <div class="asset-controls">
+          <button class="btn btn-file" data-action="pick">📁 Tambah File</button>
+          <input type="file" class="asset-input">
+          <span class="asset-preview"><span class="preview-empty">belum ada</span></span>
+          <button class="btn btn-kirim" data-action="kirim" disabled>📤 Kirim</button>
+        </div>
+      </div>
+      <div class="asset-row" data-key="bot">
+        <div class="asset-label">11.bot</div>
+        <div class="asset-controls">
+          <button class="btn btn-file" data-action="pick">📁 Tambah File</button>
+          <input type="file" class="asset-input">
+          <span class="asset-preview"><span class="preview-empty">belum ada</span></span>
+          <button class="btn btn-kirim" data-action="kirim" disabled>📤 Kirim</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="inventarisPage" style="display:none;">
+
+  <div class="wrap">
+    <div class="swipe-wrap" id="invSwipeWrap">
+      <div class="swipe-track" id="invSwipeTrack">
+
+      <div class="swipe-panel" id="invSwipeFront">
+        <div class="inv-cat-title">📄 <span>Daftar File Pdf</span></div>
+        <div class="inventory-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="col-no">No</th>
+                <th>Nama File</th>
+                <th>Diupload</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryBody_file_pdf"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="swipe-panel">
+        <div class="inv-cat-title">😀 <span>Daftar Emot</span></div>
+        <div class="inventory-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="col-no">No</th>
+                <th>Nama File</th>
+                <th>Diupload</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryBody_emot"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="swipe-panel">
+        <div class="inv-cat-title">🖼️ <span>Daftar Gambar</span></div>
+        <div class="inventory-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="col-no">No</th>
+                <th>Nama File</th>
+                <th>Diupload</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryBody_gambar"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="swipe-panel">
+        <div class="inv-cat-title">🔔 <span>Daftar Pop Up</span></div>
+        <div class="inventory-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="col-no">No</th>
+                <th>Nama File</th>
+                <th>Diupload</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryBody_popup"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="swipe-panel">
+        <div class="inv-cat-title">📰 <span>Daftar Text Berita</span></div>
+        <div class="inventory-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="col-no">No</th>
+                <th>Nama File</th>
+                <th>Diupload</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryBody_text_berita"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="swipe-panel">
+        <div class="inv-cat-title">🖼️ <span>Daftar Background Mimbar</span></div>
+        <div class="inventory-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="col-no">No</th>
+                <th>Nama File</th>
+                <th>Diupload</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryBody_background_mimbar"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="swipe-panel">
+        <div class="inv-cat-title">🪟 <span>Daftar Bingkai Foto</span></div>
+        <div class="inventory-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="col-no">No</th>
+                <th>Nama File</th>
+                <th>Diupload</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryBody_bingkai_foto"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="swipe-panel">
+        <div class="inv-cat-title">🎖️ <span>Daftar Lencana</span></div>
+        <div class="inventory-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="col-no">No</th>
+                <th>Nama File</th>
+                <th>Diupload</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryBody_lencana"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="swipe-panel">
+        <div class="inv-cat-title">🏆 <span>Daftar Trofi</span></div>
+        <div class="inventory-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="col-no">No</th>
+                <th>Nama File</th>
+                <th>Diupload</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryBody_trofi"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="swipe-panel">
+        <div class="inv-cat-title">🎵 <span>Daftar Musik</span></div>
+        <div class="inventory-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="col-no">No</th>
+                <th>Nama File</th>
+                <th>Diupload</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryBody_musik"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="swipe-panel">
+        <div class="inv-cat-title">🪪 <span>Daftar Foto Profil</span></div>
+        <div class="inventory-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="col-no">No</th>
+                <th>Nama File</th>
+                <th>Diupload</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryBody_foto_profil"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="swipe-panel">
+        <div class="inv-cat-title">🤖 <span>Daftar Bot</span></div>
+        <div class="inventory-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="col-no">No</th>
+                <th>Nama File</th>
+                <th>Diupload</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryBody_bot"></tbody>
+          </table>
+        </div>
+      </div>
+
+      </div>
+    </div>
+    <div class="swipe-dots">
+    <span class="swipe-dot active" id="invDot0"></span>
+    <span class="swipe-dot" id="invDot1"></span>
+    <span class="swipe-dot" id="invDot2"></span>
+    <span class="swipe-dot" id="invDot3"></span>
+    <span class="swipe-dot" id="invDot4"></span>
+    <span class="swipe-dot" id="invDot5"></span>
+    <span class="swipe-dot" id="invDot6"></span>
+    <span class="swipe-dot" id="invDot7"></span>
+    <span class="swipe-dot" id="invDot8"></span>
+    <span class="swipe-dot" id="invDot9"></span>
+    <span class="swipe-dot" id="invDot10"></span>
+    <span class="swipe-dot" id="invDot11"></span>
+    </div>
+  </div>
+
+</div>
+
+</div><!-- /main-content -->
+
+</div><!-- /app-shell -->
+
+<div class="footer-bar" id="footerBar">
+  <button class="footer-btn active" id="dbBtn" title="Data Base">👑<span>Data Base</span></button>
+  <button class="footer-btn" id="searchBtn" title="Cari Member">🔍<span>Cari</span></button>
+  <button class="footer-btn" id="uploadBtn" title="Upload Database">📤<span>Upload</span></button>
+  <button class="footer-btn" id="inventarisBtn" title="Inventaris">📄<span>Inventaris</span></button>
+  <button class="footer-btn footer-logout" id="logoutBtn" title="Keluar">🚪<span>Keluar</span></button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const MAX_MEMBER_ROWS = 10;
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+function fmtTanggal(s){
+  if(!s) return '';
+  const d = new Date(s);
+  if(isNaN(d)) return s;
+  return d.toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' });
+}
+
+/* ── Tabel 1: Daftar Member (10 baris tetap, kosong polos jika belum ada) ── */
+let allMembers = []; // daftar lengkap member (untuk fitur pencarian di panel 3)
+
+async function loadMembers(){
+  renderMemberTable([]); // tampil 10 baris kosong dulu
+  try{
+    const res = await fetch('/api/profile/members');
+    if(res.redirected){ window.location.href = '/login'; return; }
+    if(!res.ok) return;
+    const members = await res.json();
+    allMembers = members || [];
+    renderMemberTable(allMembers);
+  }catch(err){
+    // server belum terhubung — baris tetap kosong, swipe tetap berfungsi
+  }
+}
+
+function levelClass(level){
+  if(!level) return 'level-default';
+  const slug = String(level).toLowerCase().trim().replace(/\s+/g, '-');
+  return 'level-' + slug;
+}
+
+function renderMemberTable(members){
+  const tbody = document.getElementById('memberBody');
+  let rows = '';
+  for(let i = 0; i < MAX_MEMBER_ROWS; i++){
+    const m = members[i];
+    if(m){
+      const statusAkun = m.status_akun || 'aktif';
+      const isPending  = statusAkun === 'pending';
+      const isCekal    = statusAkun === 'cekal';
+      const isAktif    = !isPending && !isCekal;
+
+      const statusLabel = isPending ? 'Pending' : isCekal ? 'Non Aktif' : 'Aktif';
+      const statusClass = isPending ? 'status-pending' : isCekal ? 'status-cekal' : 'status-aktif';
+
+      // Level/status anggota (Kohai, Senpai, Dai Senpai, Kaisar, dst) — dinamis
+      // dari database (kolom members.status), ditampilkan di baris ke-2.
+      const levelLabel = m.status || '— Belum ada —';
+      const levelCls = levelClass(m.status);
+
+      const fotoEl = m.foto_profil
+        ? `<img src="${m.foto_profil}" alt="foto">`
+        : `<div class="no-foto">Belum ada</div>`;
+
+      const namaEl = `<span style="font-weight:600">${m.nama || '-'}</span>`
+        + (isPending ? `<br><span style="font-size:10px;color:#8b949e">${m.username}</span>` : '');
+
+      const btnAktifkan = isPending
+        ? `<button class="btn-aktifkan" data-id="${m.id}">Aktifkan</button>`
+        : `<button class="btn-aktifkan" disabled>Aktif</button>`;
+
+      const btnSuspend = isAktif
+        ? `<button class="btn-suspend" data-id="${m.id}">Suspend</button>`
+        : isCekal
+          ? `<button class="btn-suspend cekal" disabled>Dicekal</button>`
+          : '';
+
+      rows += `<tr>
+        <td class="col-no">${i+1}</td>
+        <td class="col-foto">${fotoEl}</td>
+        <td class="wrap-ok">${namaEl}</td>
+        <td>${m.kta || '— Belum ada —'}</td>
+        <td>${fmtTanggal(m.tanggal_bergabung)}</td>
+        <td>
+          <div class="member-status-cell">
+            <div class="member-status ${statusClass}">${statusLabel}</div>
+            <div class="member-level ${levelCls}">${levelLabel}</div>
+          </div>
+          <div class="member-actions">
+            ${btnAktifkan}
+            ${btnSuspend}
+          </div>
+        </td>
+      </tr>`;
+    } else {
+      rows += `<tr><td class="col-no">${i+1}</td><td></td><td></td><td></td><td></td><td></td></tr>`;
+    }
+  }
+  tbody.innerHTML = rows;
+}
+
+function suspendMember(id, btn){
+  const m = allMembers.find(x => String(x.id) === String(id));
+  if(m) m.suspended = true;
+
+  btn.textContent = 'Dicekal';
+  btn.classList.add('cekal');
+  btn.disabled = true;
+
+  const td = btn.closest('td');
+  const statusEl = td.querySelector('.member-status');
+  statusEl.textContent = 'Non Aktif';
+  statusEl.classList.remove('status-aktif');
+  statusEl.classList.add('status-cekal');
+
+  // Sembunyikan tombol Aktifkan jika masih ada
+  const btnAktifkan = td.querySelector('.btn-aktifkan');
+  if(btnAktifkan) btnAktifkan.remove();
+
+  fetch('/api/profile/suspend', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: Number(id) })
+  }).catch(()=>{});
+}
+
+async function aktifkanMember(id, btn){
+  btn.disabled = true;
+  btn.textContent = 'Memproses…';
+
+  const res = await fetch('/api/profile/aktifkan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: Number(id) })
+  }).catch(()=>null);
+
+  if(!res || !res.ok){
+    btn.textContent = 'Gagal';
+    btn.style.background = '#f85149';
+    return;
+  }
+
+  const data = await res.json();
+  const newUsername = data.username || '';
+  const newKta = data.kta || '';
+
+  // Perbarui data lokal
+  const m = allMembers.find(x => String(x.id) === String(id));
+  if(m){
+    m.status_akun = 'aktif';
+    if(newUsername) m.username = newUsername;
+    if(newKta) m.kta = newKta;
+  }
+
+  // Update tampilan baris langsung tanpa reload
+  const td = btn.closest('td');
+  const row = btn.closest('tr');
+  const usernameTd = row.querySelector('.col-user');
+  if(usernameTd && newUsername) usernameTd.textContent = newUsername;
+
+  const ktaTd = row.children[3]; // kolom No KTA
+  if(ktaTd && newKta) ktaTd.textContent = newKta;
+
+  const statusEl = td.querySelector('.member-status');
+  statusEl.textContent = 'Aktif';
+  statusEl.className = 'member-status status-aktif';
+
+  btn.textContent = 'Aktif';
+  btn.disabled = true;
+
+  // Tambahkan tombol Suspend di dalam area aksi (bukan langsung di td)
+  const actionsWrap = td.querySelector('.member-actions');
+  const btnSuspend = document.createElement('button');
+  btnSuspend.className = 'btn-suspend';
+  btnSuspend.dataset.id = id;
+  btnSuspend.textContent = 'Suspend';
+  (actionsWrap || td).appendChild(btnSuspend);
+}
+
+document.getElementById('memberBody').addEventListener('click', e=>{
+  const btnSuspend = e.target.closest('.btn-suspend');
+  if(btnSuspend && !btnSuspend.disabled){
+    suspendMember(btnSuspend.dataset.id, btnSuspend);
+    return;
+  }
+  const btnAktifkan = e.target.closest('.btn-aktifkan');
+  if(btnAktifkan && !btnAktifkan.disabled){
+    aktifkanMember(btnAktifkan.dataset.id, btnAktifkan);
+  }
+});
+
+/* ── Panel 3: Cari Data Member (berdasarkan Nama atau No KTA) ── */
+function searchMember(by){
+  const inputId = by === 'nama' ? 'searchNama' : 'searchKta';
+  const query = document.getElementById(inputId).value.trim().toLowerCase();
+  const resultsEl = document.getElementById('searchResults');
+
+  if(!query){
+    resultsEl.innerHTML = '<div class="search-empty">Masukkan kata kunci pencarian dulu.</div>';
+    return;
+  }
+
+  const results = allMembers.filter(m=>{
+    const field = by === 'nama' ? (m.nama || m.username || '') : (m.kta || '');
+    return field.toLowerCase().includes(query);
+  });
+
+  renderSearchResults(results);
+}
+
+function renderSearchResults(results){
+  const resultsEl = document.getElementById('searchResults');
+  if(!results.length){
+    resultsEl.innerHTML = '<div class="search-empty">Tidak ada member yang cocok.</div>';
+    return;
+  }
+  let rows = results.map(m=>{
+    const s = m.status_akun || 'aktif';
+    const sc = s==='pending'?'status-pending':s==='cekal'?'status-cekal':'status-aktif';
+    const sl = s==='pending'?'Pending':s==='cekal'?'Non Aktif':'Aktif';
+    const levelLabel = m.status || '— Belum ada —';
+    const levelCls = levelClass(m.status);
+    return `<tr>
+      <td class="col-user">${m.username || m.nama}</td>
+      <td>${m.kta || '— Belum ada —'}</td>
+      <td>${fmtTanggal(m.tanggal_bergabung)}</td>
+      <td>
+        <div class="member-status-cell">
+          <div class="member-status ${sc}">${sl}</div>
+          <div class="member-level ${levelCls}">${levelLabel}</div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  resultsEl.innerHTML = `
+    <div class="member-table-scroll">
+    <table>
+      <thead>
+        <tr><th>Username</th><th>No KTA</th><th>Bergabung Sejak</th><th>Status</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    </div>`;
+}
+
+/* ── Swipe: geser kanan/kiri antar panel — fungsi generik dipakai untuk
+   kartu Daftar Member ↔ Cari Data Member, dan kartu Inventaris (11 kategori) ── */
+function createSwipeCard({ wrapId, trackId, frontId, dotIds, isHiddenFn }){
+  const wrap  = document.getElementById(wrapId);
+  const track = document.getElementById(trackId);
+  const front = document.getElementById(frontId);
+  const dots  = dotIds.map(id => document.getElementById(id));
+  const PANEL_COUNT = dots.length;
+  const PANEL_PCT = 100 / PANEL_COUNT; // persen lebar 1 panel relatif terhadap track
+
+  // lebar track & tiap panel mengikuti jumlah panel sebenarnya (bukan hardcode di CSS)
+  track.style.width = (PANEL_COUNT * 100) + '%';
+  Array.from(track.children).forEach(panel => { panel.style.width = PANEL_PCT + '%'; });
+
+  let currentPanel = 0;
+  let dragStartX = 0, dragStartY = 0, dragDeltaX = 0;
+  let isDragging = false, axisLocked = null; // 'x' | 'y' | null
+
+  function syncHeight(){
+    // jangan ukur saat halaman induk sedang disembunyikan (display:none) — scrollHeight akan 0
+    // dan bikin tampilan kartu swipe hilang/kebugged saat halaman ini ditampilkan lagi
+    if(isHiddenFn && isHiddenFn()) return;
+    wrap.style.height = front.scrollHeight + 'px';
+  }
+
+  function setPanel(index){
+    index = Math.max(0, Math.min(PANEL_COUNT - 1, index));
+    currentPanel = index;
+    track.style.transform = `translateX(-${index * PANEL_PCT}%)`;
+    dots.forEach((d,i)=> d.classList.toggle('active', i === index));
+  }
+
+  function onDragStart(x, y){
+    isDragging = true;
+    axisLocked = null;
+    dragStartX = x;
+    dragStartY = y;
+    dragDeltaX = 0;
+    track.classList.add('dragging');
+  }
+
+  function onDragMove(x, y){
+    if(!isDragging) return;
+    const dx = x - dragStartX;
+    const dy = y - dragStartY;
+
+    if(axisLocked === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)){
+      axisLocked = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+    }
+    if(axisLocked === 'y'){ isDragging = false; track.classList.remove('dragging'); return; }
+    if(axisLocked !== 'x') return;
+
+    dragDeltaX = dx;
+    const wrapWidth = wrap.offsetWidth;
+    let percent = (dragDeltaX / wrapWidth) * PANEL_PCT;
+    const basePercent = -currentPanel * PANEL_PCT;
+    let total = basePercent + percent;
+    total = Math.max(-(PANEL_COUNT - 1) * PANEL_PCT, Math.min(0, total)); // jangan geser melewati panel pertama/terakhir
+    track.style.transform = `translateX(${total}%)`;
+  }
+
+  function onDragEnd(){
+    if(!isDragging){ axisLocked = null; return; }
+    isDragging = false;
+    track.classList.remove('dragging');
+
+    const wrapWidth = wrap.offsetWidth;
+    const threshold = wrapWidth * 0.18; // geser minimal ~18% lebar untuk pindah panel
+
+    if(axisLocked === 'x'){
+      if(dragDeltaX <= -threshold) setPanel(currentPanel + 1);
+      else if(dragDeltaX >= threshold) setPanel(currentPanel - 1);
+      else setPanel(currentPanel); // kembali ke posisi semula
+    }
+    axisLocked = null;
+  }
+
+  wrap.addEventListener('touchstart', e=>{
+    const t = e.touches[0];
+    onDragStart(t.clientX, t.clientY);
+  }, { passive:true });
+
+  wrap.addEventListener('touchmove', e=>{
+    const t = e.touches[0];
+    onDragMove(t.clientX, t.clientY);
+    if(axisLocked === 'x') e.preventDefault();
+  }, { passive:false });
+
+  wrap.addEventListener('touchend', onDragEnd);
+  wrap.addEventListener('touchcancel', onDragEnd);
+
+  // Dukungan mouse-drag (untuk pengetesan di desktop/browser)
+  wrap.addEventListener('mousedown', e=> onDragStart(e.clientX, e.clientY));
+  window.addEventListener('mousemove', e=>{ if(isDragging) onDragMove(e.clientX, e.clientY); });
+  window.addEventListener('mouseup', onDragEnd);
+
+  window.addEventListener('resize', syncHeight);
+
+  return { setPanel, syncHeight };
+}
+
+const inventarisSwipe = createSwipeCard({
+  wrapId: 'invSwipeWrap', trackId: 'invSwipeTrack', frontId: 'invSwipeFront',
+  dotIds: ['invDot0','invDot1','invDot2','invDot3','invDot4','invDot5',
+           'invDot6','invDot7','invDot8','invDot9','invDot10','invDot11'],
+  isHiddenFn: ()=> document.getElementById('inventarisPage').style.display === 'none'
+});
+
+
+/* ── Menu Upload Database (11 kategori) — teks sudah statis di HTML.
+   JS di sini hanya memasang aksi tombol & mengisi preview bila ada. ── */
+const selectedFiles = {}; // key -> File
+
+function savedPreviewHTML(path){
+  if(!path) return '<span class="preview-empty">belum ada</span>';
+  const isImg = /\.(png|jpe?g|gif|webp|svg)$/i.test(path);
+  if(isImg) return `<img class="preview-img" src="${path}"><span class="preview-file">${path.split('/').pop()}</span>`;
+  return `<a class="preview-file" href="${path}" target="_blank">📎 ${path.split('/').pop()}</a>`;
+}
+
+function setupAssetRows(){
+  document.querySelectorAll('.asset-row').forEach(row=>{
+    const key = row.dataset.key;
+    const fileBtn = row.querySelector('[data-action="pick"]');
+    const fileInput = row.querySelector('.asset-input');
+    const previewEl = row.querySelector('.asset-preview');
+    const kirimBtn = row.querySelector('[data-action="kirim"]');
+
+    fileBtn.addEventListener('click', ()=> fileInput.click());
+
+    fileInput.addEventListener('change', ()=>{
+      if(!fileInput.files || !fileInput.files[0]) return;
+      const file = fileInput.files[0];
+      selectedFiles[key] = file;
+      if(file.type.startsWith('image/')){
+        const url = URL.createObjectURL(file);
+        previewEl.innerHTML = `<img class="preview-img" src="${url}"><span class="preview-file">${file.name}</span>`;
+      } else {
+        previewEl.innerHTML = `<span class="preview-file">📎 ${file.name}</span>`;
+      }
+      kirimBtn.disabled = false;
+    });
+
+    kirimBtn.addEventListener('click', async ()=>{
+      const file = selectedFiles[key];
+      if(!file) return;
+      kirimBtn.disabled = true;
+      kirimBtn.textContent = '⏳ Mengirim...';
+      const fd = new FormData();
+      fd.append('category', key);
+      fd.append('file', file);
+      try{
+        const res = await fetch('/api/assets/upload', { method:'POST', body: fd });
+        const data = await res.json();
+        if(res.ok){
+          toast(data.message || 'Kirim berhasil');
+          delete selectedFiles[key];
+        } else {
+          toast(data.error || 'Gagal mengirim');
+        }
+      }catch(err){
+        toast('Tidak bisa terhubung ke server');
+      }
+      kirimBtn.textContent = '📤 Kirim';
+      kirimBtn.disabled = true;
+    });
+  });
+}
+
+async function loadAssets(){
+  try{
+    const res = await fetch('/api/assets');
+    if(res.redirected){ window.location.href = '/login'; return; }
+    if(!res.ok) return;
+    const list = await res.json();
+    list.forEach(item=>{
+      const row = document.querySelector(`.asset-row[data-key="${item.key}"]`);
+      if(row && item.path){
+        row.querySelector('.asset-preview').innerHTML = savedPreviewHTML(item.path);
+      }
+    });
+  }catch(err){
+    // backend belum aktif — teks menu tetap tampil, hanya preview tersimpan yang tidak terisi
+  }
+}
+
+/* ── Halaman Inventaris: kartu swipe per kategori (File Pdf, Emot, Gambar, ... Bot),
+   10 baris tetap per kategori, terisi & bisa di-scroll kalau ada data ── */
+const MAX_INVENTORY_ROWS = 10;
+const INVENTORY_CATEGORIES = [
+  { key: 'file_pdf',           emoji: '📄' },
+  { key: 'emot',                emoji: '😀' },
+  { key: 'gambar',              emoji: '🖼️' },
+  { key: 'popup',               emoji: '🔔' },
+  { key: 'text_berita',         emoji: '📰' },
+  { key: 'background_mimbar',   emoji: '🖼️' },
+  { key: 'bingkai_foto',        emoji: '🪟' },
+  { key: 'lencana',             emoji: '🎖️' },
+  { key: 'trofi',               emoji: '🏆' },
+  { key: 'musik',               emoji: '🎵' },
+  { key: 'foto_profil',         emoji: '🪪' },
+  { key: 'bot',                 emoji: '🤖' },
+];
+
+function renderInventoryTable(key, emoji, list){
+  const tbody = document.getElementById('inventoryBody_' + key);
+  if(!tbody) return;
+  let rows = '';
+  for(let i = 0; i < MAX_INVENTORY_ROWS; i++){
+    const item = list[i];
+    if(item){
+      const name = item.name || (item.path ? item.path.split('/').pop() : '-');
+      rows += `<tr>
+        <td class="col-no">${i+1}</td>
+        <td class="col-pdf-name">${item.path ? `<a href="${item.path}" target="_blank">${emoji} ${name}</a>` : `${emoji} ${name}`}</td>
+        <td>${fmtTanggal(item.tanggal || item.updated_at)}</td>
+      </tr>`;
+    } else {
+      rows += `<tr><td class="col-no">${i+1}</td><td class="col-pdf-empty">belum ada</td><td></td></tr>`;
+    }
+  }
+  tbody.innerHTML = rows;
+}
+
+async function loadInventoryCategory(key, emoji){
+  renderInventoryTable(key, emoji, []); // tampil 10 baris kosong dulu
+  try{
+    // endpoint backend: /api/inventaris/{key} → admin_edit.go (apiAdminInventaris)
+    const res = await fetch('/api/inventaris/' + key);
+    if(res.redirected){ window.location.href = '/login'; return; }
+    if(!res.ok) return;
+    const list = await res.json();
+    renderInventoryTable(key, emoji, list || []);
+  }catch(err){
+    // endpoint belum tersedia — tabel tetap tampil 10 baris kosong
+  }
+}
+
+function loadAllInventory(){
+  INVENTORY_CATEGORIES.forEach(c => loadInventoryCategory(c.key, c.emoji));
+  inventarisSwipe.syncHeight();
+}
+
+
+function setActiveSideBtn(id){
+  document.querySelectorAll('.footer-bar .footer-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function setPageTitle(label){
+  document.getElementById('pageTitle').innerHTML = `<span>${label}</span>`;
+}
+
+function hideAllPages(){
+  document.getElementById('mainPage').style.display = 'none';
+  document.getElementById('searchPage').style.display = 'none';
+  document.getElementById('uploadPage').style.display = 'none';
+  document.getElementById('inventarisPage').style.display = 'none';
+}
+
+function showMainPage(){
+  hideAllPages();
+  document.getElementById('mainPage').style.display = 'block';
+  setActiveSideBtn('dbBtn');
+  setPageTitle('Data Base');
+}
+
+function openSearch(){
+  hideAllPages();
+  document.getElementById('searchPage').style.display = 'block';
+  setActiveSideBtn('searchBtn');
+  setPageTitle('Cari Member');
+}
+
+function openUpload(){
+  hideAllPages();
+  document.getElementById('uploadPage').style.display = 'block';
+  setActiveSideBtn('uploadBtn');
+  setPageTitle('Upload Database');
+}
+
+function openInventaris(){
+  hideAllPages();
+  document.getElementById('inventarisPage').style.display = 'block';
+  setActiveSideBtn('inventarisBtn');
+  setPageTitle('Inventaris');
+  inventarisSwipe.setPanel(0);
+  loadAllInventory();
+}
+
+function syncHeaderHeight(){
+  const h = document.getElementById('topHeader').offsetHeight;
+  document.documentElement.style.setProperty('--header-h', h + 'px');
+}
+
+setupAssetRows();
+syncHeaderHeight();
+window.addEventListener('resize', syncHeaderHeight);
+
+document.getElementById('dbBtn').addEventListener('click', showMainPage);
+document.getElementById('searchBtn').addEventListener('click', openSearch);
+document.getElementById('uploadBtn').addEventListener('click', openUpload);
+document.getElementById('inventarisBtn').addEventListener('click', openInventaris);
+
+document.getElementById('searchNama').addEventListener('keydown', e=>{
+  if(e.key === 'Enter') searchMember('nama');
+});
+document.getElementById('searchKta').addEventListener('keydown', e=>{
+  if(e.key === 'Enter') searchMember('kta');
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+  await fetch('/api/logout', { method:'POST' });
+  window.location.href = '/login';
+});
+
+loadMembers();
+loadAssets();
+</script>
+</body></html>
