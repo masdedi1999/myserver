@@ -1,11 +1,8 @@
 myserver
-myserver_bin
-server
 *.log
-*.tgz
-ngrok*
-backup_*/
-music/
+*.db
+uploads/
 storage/
 *.mp3
-*.db
+*.jpg
+*.png
